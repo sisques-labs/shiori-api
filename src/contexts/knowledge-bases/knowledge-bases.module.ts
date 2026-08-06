@@ -10,7 +10,6 @@ import { KnowledgeBaseFindByApiKeyHashQueryHandler } from './application/queries
 import { KnowledgeBaseFindByIdQueryHandler } from './application/queries/knowledge-base-find-by-id/knowledge-base-find-by-id.handler';
 import { AssertKnowledgeBaseViewModelExistsService } from './application/services/read/assert-knowledge-base-view-model-exists/assert-knowledge-base-view-model-exists.service';
 import { GenerateApiKeyService } from './application/services/write/generate-api-key/generate-api-key.service';
-import { HashApiKeyService } from './application/services/write/hash-api-key/hash-api-key.service';
 import { AssertKnowledgeBaseExistsService } from './application/services/write/assert-knowledge-base-exists/assert-knowledge-base-exists.service';
 import { KnowledgeBaseBuilder } from './domain/builders/knowledge-base.builder';
 import { KNOWLEDGE_BASE_READ_REPOSITORY } from './domain/repositories/read/knowledge-base-read.repository';
@@ -37,9 +36,10 @@ const QUERY_HANDLERS = [
   KnowledgeBaseFindByApiKeyHashQueryHandler,
 ];
 
+// HashApiKeyService is provided globally by TenancyModule (src/core/tenancy/)
+// — shared with KnowledgeBaseApiKeyGuard, not re-declared here.
 const APPLICATION_SERVICES = [
   GenerateApiKeyService,
-  HashApiKeyService,
   AssertKnowledgeBaseExistsService,
   AssertKnowledgeBaseViewModelExistsService,
 ];

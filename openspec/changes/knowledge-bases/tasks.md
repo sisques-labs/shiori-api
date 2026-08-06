@@ -81,7 +81,7 @@ merge.
 ## Phase 3: Application
 
 - [x] 3.1 Create `src/contexts/knowledge-bases/application/services/write/generate-api-key/generate-api-key.service.ts` — `execute(): string`, returns `` `kb_${crypto.randomBytes(32).toString('base64url')}` `` (Node `crypto`, no external dep)
-- [x] 3.2 Create `src/contexts/knowledge-bases/application/services/write/hash-api-key/hash-api-key.service.ts` — `execute(rawKey: string): string`, returns `crypto.createHash('sha256').update(rawKey).digest('hex')`
+- [x] 3.2 Create `src/core/tenancy/hash-api-key.service.ts` — `execute(rawKey: string): string`, returns `crypto.createHash('sha256').update(rawKey).digest('hex')`. **Relocated from `src/contexts/knowledge-bases/application/services/write/hash-api-key/`** alongside the guard fix (4.7) — `KnowledgeBaseApiKeyGuard` needs it too, and a real E2E boot (not just unit tests with manual mocks) is what surfaces a missing-provider DI error, which is how this was caught.
 - [x] 3.3 Create `src/contexts/knowledge-bases/application/services/write/assert-knowledge-base-exists/assert-knowledge-base-exists.service.ts` — injects `IKnowledgeBaseWriteRepository`; throws `KnowledgeBaseNotFoundException` when aggregate is null
 - [x] 3.4 Create `src/contexts/knowledge-bases/application/services/read/assert-knowledge-base-view-model-exists/assert-knowledge-base-view-model-exists.service.ts` — injects `IKnowledgeBaseReadRepository`; throws `KnowledgeBaseNotFoundException` when VM is null
 - [x] 3.5 Create `src/contexts/knowledge-bases/application/commands/create-knowledge-base/create-knowledge-base.command.ts` — `CreateKnowledgeBaseCommandInput { name: string; description?: string }`; `CreateKnowledgeBaseCommand` with VO fields

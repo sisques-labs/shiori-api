@@ -6,7 +6,7 @@ import { KnowledgeBaseAggregate } from '@contexts/knowledge-bases/domain/aggrega
 import { KnowledgeBaseApiKeyHashValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-api-key-hash/knowledge-base-api-key-hash.value-object';
 import { AssertKnowledgeBaseExistsService } from '@contexts/knowledge-bases/application/services/write/assert-knowledge-base-exists/assert-knowledge-base-exists.service';
 import { GenerateApiKeyService } from '@contexts/knowledge-bases/application/services/write/generate-api-key/generate-api-key.service';
-import { HashApiKeyService } from '@contexts/knowledge-bases/application/services/write/hash-api-key/hash-api-key.service';
+import { HashApiKeyService } from '@core/tenancy/hash-api-key.service';
 import {
   KNOWLEDGE_BASE_WRITE_REPOSITORY,
   IKnowledgeBaseWriteRepository,

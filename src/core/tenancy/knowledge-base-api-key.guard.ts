@@ -4,7 +4,7 @@ import { QueryBus } from '@nestjs/cqrs';
 import { Reflector } from '@nestjs/core';
 
 import { KnowledgeBaseFindByApiKeyHashQuery } from '@contexts/knowledge-bases/application/queries/knowledge-base-find-by-api-key-hash/knowledge-base-find-by-api-key-hash.query';
-import { HashApiKeyService } from '@contexts/knowledge-bases/application/services/write/hash-api-key/hash-api-key.service';
+import { HashApiKeyService } from './hash-api-key.service';
 import { KnowledgeBaseUnauthorizedException } from '@contexts/knowledge-bases/domain/exceptions/knowledge-base-unauthorized.exception';
 import { KnowledgeBaseViewModel } from '@contexts/knowledge-bases/domain/view-models/knowledge-base.view-model';
 

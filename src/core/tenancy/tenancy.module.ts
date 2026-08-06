@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 
+import { HashApiKeyService } from './hash-api-key.service';
 import { KnowledgeBaseApiKeyGuard } from './knowledge-base-api-key.guard';
 import { KnowledgeBaseContextInterceptor } from './knowledge-base-context.interceptor';
 import { KnowledgeBaseContext } from './knowledge-base-context.service';
@@ -20,9 +21,10 @@ import { KnowledgeBaseContext } from './knowledge-base-context.service';
 @Module({
   providers: [
     KnowledgeBaseContext,
+    HashApiKeyService,
     KnowledgeBaseApiKeyGuard,
     { provide: APP_INTERCEPTOR, useClass: KnowledgeBaseContextInterceptor },
   ],
-  exports: [KnowledgeBaseContext, KnowledgeBaseApiKeyGuard],
+  exports: [KnowledgeBaseContext, HashApiKeyService, KnowledgeBaseApiKeyGuard],
 })
 export class TenancyModule {}

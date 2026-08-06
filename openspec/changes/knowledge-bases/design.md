@@ -34,6 +34,14 @@ auth instead of JWT+membership:
   which is fine — `src/core/**` is exempt from the boundaries ESLint rule
   (`boundaries/include` only covers `src/contexts/**`), the same precedent
   `core/filters/base-exception.filter.ts` already uses.
+- **`HashApiKeyService` moved to `src/core/tenancy/` too**, for the same
+  reason and discovered the same way (a real E2E boot, not just unit tests
+  with manually-instantiated mocks, is what surfaces missing-provider DI
+  errors): the guard needs it, and it's also still used by
+  `CreateKnowledgeBase`/`RotateKnowledgeBaseApiKey`'s own handlers inside
+  `knowledge-bases`. One canonical registration in the `@Global()`
+  `TenancyModule`, consumed from both places — no duplicate provider
+  instances.
 - The `knowledge-bases` context's **own** repositories are *not*
   tenant-scoped by `createTenantRepository` — a knowledge base IS the tenant
   root, there is nothing above it to scope by. `createTenantRepository` has
@@ -101,6 +109,8 @@ src/core/tenancy/
   knowledge-base-context.interceptor.spec.ts
   knowledge-base-api-key.guard.ts         — resolves X-API-Key via KnowledgeBaseFindByApiKeyHashQuery
   knowledge-base-api-key.guard.spec.ts
+  hash-api-key.service.ts                 — SHA-256; shared by the guard AND knowledge-bases' own create/rotate handlers
+  hash-api-key.service.spec.ts
   skip-knowledge-base-auth.decorator.ts
   current-knowledge-base-id.decorator.ts
   tenancy.module.ts                       — @Global(); exports KnowledgeBaseContext + KnowledgeBaseApiKeyGuard
@@ -135,8 +145,6 @@ src/contexts/knowledge-bases/
   application/
     services/write/generate-api-key/generate-api-key.service.ts
     services/write/generate-api-key/generate-api-key.service.spec.ts
-    services/write/hash-api-key/hash-api-key.service.ts
-    services/write/hash-api-key/hash-api-key.service.spec.ts
     services/write/assert-knowledge-base-exists/assert-knowledge-base-exists.service.ts
     services/write/assert-knowledge-base-exists/assert-knowledge-base-exists.service.spec.ts
     services/read/assert-knowledge-base-view-model-exists/assert-knowledge-base-view-model-exists.service.ts

@@ -2,7 +2,7 @@ import { ExecutionContext } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 import { Reflector } from '@nestjs/core';
 
-import { HashApiKeyService } from '@contexts/knowledge-bases/application/services/write/hash-api-key/hash-api-key.service';
+import { HashApiKeyService } from './hash-api-key.service';
 import { KnowledgeBaseUnauthorizedException } from '@contexts/knowledge-bases/domain/exceptions/knowledge-base-unauthorized.exception';
 
 import { KnowledgeBaseApiKeyGuard } from './knowledge-base-api-key.guard';

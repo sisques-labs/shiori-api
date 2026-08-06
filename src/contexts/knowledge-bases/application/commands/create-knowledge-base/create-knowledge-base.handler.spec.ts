@@ -3,7 +3,7 @@ import { EventBus } from '@nestjs/cqrs';
 import { KnowledgeBaseBuilder } from '@contexts/knowledge-bases/domain/builders/knowledge-base.builder';
 import { IKnowledgeBaseWriteRepository } from '@contexts/knowledge-bases/domain/repositories/write/knowledge-base-write.repository';
 import { GenerateApiKeyService } from '@contexts/knowledge-bases/application/services/write/generate-api-key/generate-api-key.service';
-import { HashApiKeyService } from '@contexts/knowledge-bases/application/services/write/hash-api-key/hash-api-key.service';
+import { HashApiKeyService } from '@core/tenancy/hash-api-key.service';
 
 import { CreateKnowledgeBaseCommand } from './create-knowledge-base.command';
 import { CreateKnowledgeBaseCommandHandler } from './create-knowledge-base.handler';

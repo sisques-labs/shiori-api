@@ -7,7 +7,7 @@ import { KnowledgeBaseNameValueObject } from '@contexts/knowledge-bases/domain/v
 import { IKnowledgeBaseWriteRepository } from '@contexts/knowledge-bases/domain/repositories/write/knowledge-base-write.repository';
 import { AssertKnowledgeBaseExistsService } from '@contexts/knowledge-bases/application/services/write/assert-knowledge-base-exists/assert-knowledge-base-exists.service';
 import { GenerateApiKeyService } from '@contexts/knowledge-bases/application/services/write/generate-api-key/generate-api-key.service';
-import { HashApiKeyService } from '@contexts/knowledge-bases/application/services/write/hash-api-key/hash-api-key.service';
+import { HashApiKeyService } from '@core/tenancy/hash-api-key.service';
 import { DateValueObject } from '@sisques-labs/nestjs-kit';
 
 import { RotateKnowledgeBaseApiKeyCommand } from './rotate-knowledge-base-api-key.command';
