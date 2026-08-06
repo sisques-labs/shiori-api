@@ -1,38 +1,22 @@
-# NestJS Template
+# Shiori API
 
-Sisques Labs' base template for new NestJS services: **DDD + CQRS + Hexagonal**
-architecture, TypeORM/PostgreSQL, optional Kafka event forwarding, REST
-(Swagger) + GraphQL (Apollo) transports, structured logging
-(`@sisques-labs/nestjs-kit` + Winston), Sentry, Prometheus metrics, an MCP
-endpoint, health checks, and the CI/CD workflows this org uses in production —
-all wired and ready to clone into a new service.
+**Shiori (栞)** — Japanese for "bookmark" — is an open-source Retrieval-Augmented
+Generation (RAG) platform. This repository, `shiori-api`, is its backend
+service.
 
-It ships with **zero bounded contexts** (`src/contexts/`) on purpose: the
-cross-cutting infrastructure (`src/core/`, `src/support/`) is the whole point
-of this repo, and the first context your new service adds defines the pattern
-every subsequent one follows (see the `architecture` skill in
-`.claude/skills/architecture/SKILL.md`).
+The project is bootstrapped from
+[`sisques-labs/nestjs-template`](https://github.com/sisques-labs/nestjs-template):
+**DDD + CQRS + Hexagonal** architecture, TypeORM/PostgreSQL, optional Kafka
+event forwarding, REST (Swagger) + GraphQL (Apollo) transports, structured
+logging (`@sisques-labs/nestjs-kit` + Winston), Sentry, Prometheus metrics,
+an MCP endpoint, health checks, and production-ready CI/CD workflows.
 
-## Using this template for a new service
-
-1. Create the new repo from this template (GitHub "Use this template", or
-   clone + re-init git).
-2. Rename the placeholder identifiers in one shot:
-   ```bash
-   scripts/rename-service.sh orders-api "Orders API"
-   pnpm install
-   ```
-   This rewrites every occurrence of `nestjs-template` / `NestJS Template` —
-   `package.json`, Docker image names in `.github/workflows/`, the Kafka
-   client id/topic prefix defaults, Sentry release, Prometheus
-   `defaultLabels.app`, the MCP server name, docker-compose database names,
-   and this README.
-3. Copy `.env.example` to `.env` and fill in real values.
-4. `pnpm test:db:up` to start a local Postgres, then `pnpm dev`.
-5. Add your first bounded context under `src/contexts/` and register its
-   module in `CONTEXT_MODULES` in `src/contexts/contexts.module.ts` — invoke
-   the `architecture` skill (or read `.claude/skills/architecture/SKILL.md`
-   directly) for the DDD+CQRS+Hexagonal layer rules and file naming.
+At this stage the service still ships with **zero bounded contexts**
+(`src/contexts/`): the cross-cutting infrastructure (`src/core/`,
+`src/support/`) is in place, and the first bounded context to land here will
+be Shiori's own RAG domain (ingestion, indexing, retrieval, generation). See
+the `architecture` skill in `.claude/skills/architecture/SKILL.md` for the
+layer rules every context — including that first one — must follow.
 
 ## What's included
 
@@ -45,24 +29,16 @@ every subsequent one follows (see the `architecture` skill in
 | Prometheus metrics | `@sisques-labs/nestjs-kit/metrics` (wired in `src/core/core.module.ts`) | `GET /api/metrics`, HTTP (REST+GraphQL) + CQRS instrumentation |
 | Sentry | `src/core/observability/` | Disabled until `SENTRY_DSN` is set |
 | MCP (Model Context Protocol) | `@sisques-labs/nestjs-kit/mcp` (wired in `src/core/core.module.ts`) | `POST /api/mcp`, per-request server, tool auto-discovery |
-| REST + GraphQL | `src/main.ts`, `src/core/core.module.ts` | Swagger at `/docs`, Apollo GraphQL at `/graphql` (drop whichever transport you don't need) |
+| REST + GraphQL | `src/main.ts`, `src/core/core.module.ts` | Swagger at `/docs`, Apollo GraphQL at `/graphql` |
 | Database | `src/database/`, TypeORM | Postgres only; migrations in `src/database/migrations/` |
-| CI/CD | `.github/workflows/` | `ci.yml` (lint+test+build+e2e+integration), `docker.yml` (PR smoke build), `release.yml` / `release-train.yml` (via `sisques-labs/workflows`) |
+| CI/CD | `.github/workflows/` | `ci.yml` (lint+test+build+e2e+integration), `docker.yml` (PR smoke build), `release.yml` / `release-train.yml` |
 | Dev workflow | `AGENTS.md`, `.claude/`, `openspec/` | Architecture skill, OpenSpec propose/apply/archive skills, project conventions in `openspec/config.yaml` |
 
-## Deliberately not included
+## Roadmap
 
-These are common enough that they shouldn't be baked into every service, but
-specific enough that they'd bias the template toward one shape:
-
-- **Auth** (JWT/OAuth/sessions) and **multi-tenancy** — add what your service
-  actually needs; the MCP module's `contextBuilder` option (see
-  `McpModule.forRoot(...)` in `src/core/core.module.ts`, and `IMcpContextBuilder`
-  from `@sisques-labs/nestjs-kit/mcp`) and `src/core/filters/base-exception.filter.ts`
-  both have a documented extension point for when you do.
-- **Bounded contexts / business domain** — this is infrastructure only.
-- **MongoDB** — `@sisques-labs/nestjs-kit/mongodb` is available if a service
-  needs it alongside or instead of Postgres.
+Shiori's RAG domain is not implemented yet. Planned bounded contexts include
+document ingestion, chunking/embedding, vector retrieval, and generation —
+tracked as they're proposed under `openspec/`.
 
 ## Local development
 
@@ -93,3 +69,14 @@ DDD + CQRS + Hexagonal (Screaming Architecture). Full rules, file naming, and
 the mandatory find-by-criteria filter pattern live in
 `.claude/skills/architecture/SKILL.md`; project-wide conventions (tech stack,
 testing layers, apply-time rules) live in `openspec/config.yaml`.
+
+## Contributing
+
+Shiori is early-stage and the domain model is still taking shape — issues and
+discussions are welcome. Please read `AGENTS.md` and
+`.claude/skills/architecture/SKILL.md` before opening a PR that adds a
+bounded context.
+
+## License
+
+[MIT](LICENSE)
