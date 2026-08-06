@@ -1,0 +1,16 @@
+change: knowledge-bases
+status: design
+created: 2026-08-06
+artifact_store: hybrid
+context: knowledge-bases
+phases:
+  explore: done
+  proposal: done
+  spec: done
+  design: done
+  tasks: done
+  apply: pending
+  verify: pending
+  archive: pending
+next_recommended:
+  - sdd-apply
