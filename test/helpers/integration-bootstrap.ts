@@ -56,7 +56,13 @@ export async function createIntegrationModule(
         synchronize: false,
         logging: false,
       }),
-      CqrsModule,
+      // .forRoot() (not the bare module) — matches production (core.module.ts)
+      // and marks CommandBus/QueryBus/EventBus global, so providers nested
+      // several modules deep (e.g. a guard inside a @Global() module that's
+      // imported by a context module, itself imported here) can resolve
+      // them. The bare CqrsModule import scopes those providers to whatever
+      // directly imports it, which breaks that case.
+      CqrsModule.forRoot(),
       SharedGraphQLModule,
       ...options.imports,
     ],
