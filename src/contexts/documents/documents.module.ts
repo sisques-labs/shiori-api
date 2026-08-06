@@ -141,5 +141,9 @@ const TRANSPORT_PROVIDERS = [
     ...INFRASTRUCTURE_ADAPTERS,
     ...TRANSPORT_PROVIDERS,
   ],
+  // CHUNK_WRITE_REPOSITORY is exported specifically for `retrieval`'s
+  // ChunkSourcePort adapter — reusing this context's own findByDocumentId
+  // instead of a second persistence path for the same data.
+  exports: [CHUNK_WRITE_REPOSITORY],
 })
 export class DocumentsModule {}
