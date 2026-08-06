@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { TenancyModule } from '@core/tenancy/tenancy.module';
+
 import { CreateKnowledgeBaseCommandHandler } from './application/commands/create-knowledge-base/create-knowledge-base.handler';
 import { DeleteKnowledgeBaseCommandHandler } from './application/commands/delete-knowledge-base/delete-knowledge-base.handler';
 import { RotateKnowledgeBaseApiKeyCommandHandler } from './application/commands/rotate-knowledge-base-api-key/rotate-knowledge-base-api-key.handler';
@@ -36,8 +38,8 @@ const QUERY_HANDLERS = [
   KnowledgeBaseFindByApiKeyHashQueryHandler,
 ];
 
-// HashApiKeyService is provided globally by TenancyModule (src/core/tenancy/)
-// — shared with KnowledgeBaseApiKeyGuard, not re-declared here.
+// HashApiKeyService comes from TenancyModule (imported below) — shared with
+// KnowledgeBaseApiKeyGuard, not re-declared here.
 const APPLICATION_SERVICES = [
   GenerateApiKeyService,
   AssertKnowledgeBaseExistsService,
@@ -67,13 +69,17 @@ const GRAPHQL_PROVIDERS = [
   KnowledgeBaseGraphQLMapper,
 ];
 
-// KnowledgeBaseApiKeyGuard is provided globally by TenancyModule
-// (src/core/tenancy/) — every context can @UseGuards() it without
-// re-declaring it here.
+// KnowledgeBaseApiKeyGuard is provided by TenancyModule (imported below) —
+// every context that imports TenancyModule can @UseGuards() it without
+// re-declaring it.
 const TRANSPORT_PROVIDERS = [...REST_PROVIDERS, ...GRAPHQL_PROVIDERS];
 
 @Module({
-  imports: [CqrsModule, TypeOrmModule.forFeature([KnowledgeBaseTypeOrmEntity])],
+  imports: [
+    CqrsModule,
+    TenancyModule,
+    TypeOrmModule.forFeature([KnowledgeBaseTypeOrmEntity]),
+  ],
   controllers: [...REST_CONTROLLERS],
   providers: [
     ...COMMAND_HANDLERS,
