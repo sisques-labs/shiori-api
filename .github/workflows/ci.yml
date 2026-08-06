@@ -24,7 +24,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:18-alpine
+        image: pgvector/pgvector:pg18
         env:
           POSTGRES_DB: nestjs_template_test
           POSTGRES_USER: postgres
@@ -82,7 +82,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:18-alpine
+        image: pgvector/pgvector:pg18
         env:
           POSTGRES_DB: nestjs_template_test
           POSTGRES_USER: postgres

@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   postgres-test:
-    image: postgres:18-alpine
+    image: pgvector/pgvector:pg18
     ports:
       - '5433:5432'
     environment:

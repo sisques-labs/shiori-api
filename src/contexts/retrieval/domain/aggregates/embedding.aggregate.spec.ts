@@ -1,0 +1,99 @@
+import { DateValueObject, UuidValueObject } from '@sisques-labs/nestjs-kit';
+
+import { InvalidEmbeddingVectorDimensionException } from '@contexts/retrieval/domain/exceptions/invalid-embedding-vector-dimension.exception';
+import { EmbeddingChunkPositionValueObject } from '@contexts/retrieval/domain/value-objects/embedding-chunk-position/embedding-chunk-position.value-object';
+import { EmbeddingChunkTextValueObject } from '@contexts/retrieval/domain/value-objects/embedding-chunk-text/embedding-chunk-text.value-object';
+import { EmbeddingIdValueObject } from '@contexts/retrieval/domain/value-objects/embedding-id/embedding-id.value-object';
+import { EmbeddingModelValueObject } from '@contexts/retrieval/domain/value-objects/embedding-model/embedding-model.value-object';
+import {
+  EMBEDDING_VECTOR_DIMENSIONS,
+  EmbeddingVectorValueObject,
+} from '@contexts/retrieval/domain/value-objects/embedding-vector/embedding-vector.value-object';
+
+import { EmbeddingAggregate } from './embedding.aggregate';
+
+function vector(fill = 0.1): number[] {
+  return new Array(EMBEDDING_VECTOR_DIMENSIONS).fill(fill);
+}
+
+describe('EmbeddingAggregate', () => {
+  it('hydrates from its constructor props', () => {
+    const now = new Date();
+    const knowledgeBaseId = UuidValueObject.generate();
+    const documentId = UuidValueObject.generate();
+    const chunkId = UuidValueObject.generate();
+
+    const embedding = new EmbeddingAggregate({
+      id: EmbeddingIdValueObject.generate() as EmbeddingIdValueObject,
+      knowledgeBaseId,
+      documentId,
+      chunkId,
+      chunkText: new EmbeddingChunkTextValueObject('some chunk text'),
+      chunkPosition: new EmbeddingChunkPositionValueObject(3),
+      embedding: new EmbeddingVectorValueObject(vector()),
+      model: new EmbeddingModelValueObject('text-embedding-3-small'),
+      createdAt: new DateValueObject(now),
+    });
+
+    expect(embedding.knowledgeBaseId.value).toBe(knowledgeBaseId.value);
+    expect(embedding.documentId.value).toBe(documentId.value);
+    expect(embedding.chunkId.value).toBe(chunkId.value);
+    expect(embedding.chunkText.value).toBe('some chunk text');
+    expect(embedding.chunkPosition.value).toBe(3);
+    expect(embedding.embedding.value).toHaveLength(EMBEDDING_VECTOR_DIMENSIONS);
+    expect(embedding.model.value).toBe('text-embedding-3-small');
+  });
+
+  it('toPrimitives() returns the flat shape', () => {
+    const now = new Date();
+    const id = EmbeddingIdValueObject.generate() as EmbeddingIdValueObject;
+    const knowledgeBaseId = UuidValueObject.generate();
+    const documentId = UuidValueObject.generate();
+    const chunkId = UuidValueObject.generate();
+    const v = vector(0.2);
+
+    const embedding = new EmbeddingAggregate({
+      id,
+      knowledgeBaseId,
+      documentId,
+      chunkId,
+      chunkText: new EmbeddingChunkTextValueObject('text'),
+      chunkPosition: new EmbeddingChunkPositionValueObject(0),
+      embedding: new EmbeddingVectorValueObject(v),
+      model: new EmbeddingModelValueObject('m'),
+      createdAt: new DateValueObject(now),
+    });
+
+    expect(embedding.toPrimitives()).toEqual({
+      id: id.value,
+      knowledgeBaseId: knowledgeBaseId.value,
+      documentId: documentId.value,
+      chunkId: chunkId.value,
+      chunkText: 'text',
+      chunkPosition: 0,
+      embedding: v,
+      model: 'm',
+      createdAt: now,
+    });
+  });
+});
+
+describe('EmbeddingVectorValueObject', () => {
+  it('accepts a vector of exactly the expected dimension', () => {
+    expect(() => new EmbeddingVectorValueObject(vector())).not.toThrow();
+  });
+
+  it('rejects a vector of the wrong dimension', () => {
+    expect(() => new EmbeddingVectorValueObject([1, 2, 3])).toThrow(
+      InvalidEmbeddingVectorDimensionException,
+    );
+  });
+
+  it('is immutable — mutating the returned array does not affect the VO', () => {
+    const vo = new EmbeddingVectorValueObject(vector());
+    const returned = vo.value;
+    returned[0] = 999;
+
+    expect(vo.value[0]).not.toBe(999);
+  });
+});
