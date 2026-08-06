@@ -112,14 +112,15 @@ more similar).
 
 ### 5.1 Chunk read: ChunkSourcePort
 
-`documents` exports `CHUNK_WRITE_REPOSITORY` from `DocumentsModule`
-specifically so `retrieval` can call its existing
-`findByDocumentId(documentId): Promise<ChunkAggregate[]>` without a second
-persistence path for the same data. `retrieval`'s own
-`document-chunk-source.adapter.ts` (in `infrastructure/adapters/` — the
-ESLint-permitted seam) implements a local `ChunkSourcePort` around it,
-mapping `ChunkAggregate[]` to the minimal shape `retrieval` actually needs
-(`{id, text, position}[]`).
+`documents` exposes an internal-only `ChunkFindByDocumentIdQuery`
+(no transport surface), wrapping its existing
+`findByDocumentId(documentId): Promise<ChunkAggregate[]>` repository
+method. `retrieval`'s own `document-chunk-source.adapter.ts` (in
+`infrastructure/adapters/` — the ESLint-permitted seam) implements a
+local `ChunkSourcePort` by dispatching that query through the global
+`QueryBus` — the established cross-context read pattern in this
+codebase — mapping the result to the minimal shape `retrieval` actually
+needs (`{id, text, position}[]`).
 
 ### 5.2 Event listeners
 

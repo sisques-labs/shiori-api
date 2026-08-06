@@ -80,7 +80,8 @@ platform end to end.
 | Area | Impact |
 |------|--------|
 | `src/contexts/retrieval/` | New — full bounded context |
-| `src/contexts/documents/documents.module.ts` | Modify — export `CHUNK_WRITE_REPOSITORY` so `retrieval` can read chunk text without a second persistence path |
+| `src/contexts/documents/application/queries/chunk-find-by-document-id/` | New — internal-only query `retrieval` dispatches via `QueryBus` to read chunk text without a second persistence path |
+| `src/contexts/documents/documents.module.ts` | Modify — register the new query handler |
 | `src/database/migrations/1780000000003-CreateEmbeddings.ts` | New — `CREATE EXTENSION vector`, `embeddings` table, HNSW index |
 | `src/contexts/contexts.module.ts` | Modify — register `RetrievalModule` |
 | `docker-compose.yml`, `docker-compose.test.yml` | Modify — Postgres image → `pgvector/pgvector:pg18` (adds the `vector` extension; same major version, no other behavior change) |
@@ -92,8 +93,8 @@ platform end to end.
 The migration is additive — `down()` drops the `embeddings` table then the
 `vector` extension. `RetrievalModule` can be unregistered from
 `contexts.module.ts` independently; `documents` has zero compile-time
-dependency on `retrieval` (exporting `CHUNK_WRITE_REPOSITORY` is inert if
-nothing imports it). The Postgres image swap is backward compatible —
+dependency on `retrieval` (the new query handler is inert if nothing
+dispatches it). The Postgres image swap is backward compatible —
 `pgvector/pgvector:pg18` is standard Postgres 18 plus the extension, so
 existing non-vector tables/queries are unaffected even if this change were
 rolled back after the image swap alone had shipped.

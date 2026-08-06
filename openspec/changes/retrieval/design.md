@@ -20,17 +20,31 @@ bus.
 ## Cross-context chunk read
 
 `retrieval` needs chunk **text** to embed it, but `Chunk` is owned by
-`documents`. Two options were considered:
+`documents`. Three options were considered:
 
 1. Carry chunk text in the `DocumentChunkedEvent` payload itself.
-2. `retrieval` reads chunks through `documents`' own repository, exported
-   for exactly this purpose.
+2. Export `documents`' `CHUNK_WRITE_REPOSITORY` from `DocumentsModule` and
+   inject it directly into `retrieval`'s adapter.
+3. Add a new internal-only `ChunkFindByDocumentIdQuery` to `documents`,
+   dispatched by `retrieval`'s adapter through the global `QueryBus`.
 
-**Chosen: (2).** `documents/domain/repositories/write/chunk-write.repository.ts`
-already has `findByDocumentId(documentId): Promise<ChunkAggregate[]>` — built
-for the chunking processor, but the signature is exactly what a reader
-needs too. `DocumentsModule` adds `CHUNK_WRITE_REPOSITORY` to its `exports`
-array (previously internal-only). `retrieval` defines its own port,
+**Chosen: (3).** Option (2) was implemented first but rejected by
+`eslint`'s `boundaries/element-types` rule: it flags cross-context
+imports from anywhere except `infrastructure/adapters/**`, and a
+`.module.ts`'s `imports: [...]` array — where a repository export would
+have to be wired in — sits at the context root, not inside
+`infrastructure/adapters/`. There is no way to satisfy both "the module
+needs `DocumentsModule` in its `imports` array" and "only
+`infrastructure/adapters/**` may reference another context." Checking the
+sibling `gardenia-api` service confirmed the actual established pattern:
+no context there ever imports another context's module directly — cross-context
+reads/writes dispatch a plain Command/Query class through the global
+`CommandBus`/`QueryBus` (see `care-schedule`'s `CareLogAdapter`, which
+depends only on `CommandBus` and the imported `CreateCareLogEntryCommand`
+class). `documents/application/queries/chunk-find-by-document-id/`
+wraps the existing `IChunkWriteRepository.findByDocumentId` in exactly
+this shape — internal only, no transport surface, same posture as
+`DeleteDocumentsByKnowledgeBaseCommand`. `retrieval` defines its own port,
 `ChunkSourcePort`, and implements it in
 `infrastructure/adapters/document-chunk-source.adapter.ts` — the
 ESLint-permitted seam (`infrastructure/adapters/**`) for importing another
@@ -87,7 +101,7 @@ extension binary. No other behavior changes for existing tables/migrations.
 | Decision | Choice | Alternatives rejected | Rationale |
 |----------|--------|------------------------|-----------|
 | Embedding as its own aggregate | `EmbeddingAggregate`, hydration-only, one row per chunk | Store the vector as a column on `Chunk` itself | `Chunk` belongs to `documents`; embeddings are `retrieval`'s own derived data with their own lifecycle (re-embeddable on model change, deletable independently) — mirrors why `Chunk` itself isn't embedded in `Document` |
-| Chunk text access | Consume `documents`' exported `IChunkWriteRepository.findByDocumentId` via a local `ChunkSourcePort` adapter | Carry chunk bodies in `DocumentChunkedEvent` | Keeps the event schema stable/small for all consumers; reuses `documents`' existing method instead of duplicating a query path |
+| Chunk text access | Dispatch `documents`' internal `ChunkFindByDocumentIdQuery` via the global `QueryBus`, wrapped in a local `ChunkSourcePort` adapter | Export `CHUNK_WRITE_REPOSITORY` from `DocumentsModule` and inject directly; carry chunk bodies in `DocumentChunkedEvent` | The direct-export approach fails ESLint's boundary rule (module-level imports can't live inside `infrastructure/adapters/**`); QueryBus dispatch is the actual established cross-context pattern (see `gardenia-api`'s `CareLogAdapter`) and keeps the event schema stable/small for all consumers |
 | Vector storage | pgvector `vector` column via TypeORM's native support | Raw `pgvector` npm package; store as JSON and compute similarity in application code | Native support needs zero new dependencies; application-side similarity search doesn't scale and defeats the purpose of an ANN index |
 | Distance metric | Cosine (`<=>`), HNSW index with `vector_cosine_ops` | L2 (`<->`) | Matches how OpenAI-compatible embedding models are typically trained/evaluated |
 | Embedding pipeline | Async via BullMQ (new `retrieval` queue), triggered by `documents`' `DocumentChunked` event | Synchronous embedding inside `CreateDocument`/inline in the event listener | An external HTTP call needs retry/backoff and shouldn't block chunking completion or the event bus, exactly `documents`' own reasoning for async chunking |
@@ -165,7 +179,8 @@ Modified files:
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/contexts/documents/documents.module.ts` | Modify | Add `CHUNK_WRITE_REPOSITORY` to `exports` |
+| `src/contexts/documents/documents.module.ts` | Modify | Register `ChunkFindByDocumentIdQueryHandler` |
+| `src/contexts/documents/application/queries/chunk-find-by-document-id/` | Create | Internal-only query wrapping `IChunkWriteRepository.findByDocumentId`, dispatched by `retrieval` via `QueryBus` |
 | `src/database/migrations/1780000000003-CreateEmbeddings.ts` | Create | `CREATE EXTENSION vector`, `embeddings` table, HNSW cosine index |
 | `src/contexts/contexts.module.ts` | Modify | Add `RetrievalModule` |
 | `docker-compose.yml`, `docker-compose.test.yml` | Modify | Postgres image → `pgvector/pgvector:pg18` |
