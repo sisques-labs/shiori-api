@@ -50,12 +50,12 @@ const CORE_MODULES = [
     }),
   }),
   ObservabilityModule,
-  MetricsModule.forRoot({ appLabel: 'nestjs-template' }),
+  MetricsModule.forRoot({ appLabel: 'shiori-api' }),
   MessagingModule.forRoot({ aggregateModuleMap: AGGREGATE_MODULE_MAP }),
   HealthModule,
   // No auth yet, so the default context builder (`{ requestId }`) is used —
   // pass `contextBuilder` here once this service resolves an identity.
-  McpModule.forRoot({ name: 'nestjs-template', version: '0.1.0' }),
+  McpModule.forRoot({ name: 'shiori-api', version: '0.1.0' }),
 ];
 
 @Module({
