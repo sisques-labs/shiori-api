@@ -1,4 +1,5 @@
 import { DynamicModule, Provider, Type } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getDataSourceToken, TypeOrmModule } from '@nestjs/typeorm';
@@ -14,6 +15,8 @@ const DB_PORT = parseInt(process.env.DATABASE_PORT ?? '5433', 10);
 const DB_DATABASE = process.env.DATABASE_DATABASE ?? 'nestjs_template_test';
 const DB_USERNAME = process.env.DATABASE_USERNAME ?? 'postgres';
 const DB_PASSWORD = process.env.DATABASE_PASSWORD ?? 'postgres';
+const REDIS_HOST = process.env.REDIS_HOST ?? 'localhost';
+const REDIS_PORT = parseInt(process.env.REDIS_PORT ?? '6379', 10);
 
 export interface IntegrationModuleOptions {
   imports: Array<Type<unknown> | DynamicModule>;
@@ -64,6 +67,12 @@ export async function createIntegrationModule(
       // directly imports it, which breaks that case.
       CqrsModule.forRoot(),
       SharedGraphQLModule,
+      // Any context that registers a BullMQ queue (e.g. documents'
+      // BullModule.registerQueue({ name: 'documents' })) needs this shared
+      // connection present in the graph, matching production (core.module.ts).
+      BullModule.forRoot({
+        connection: { host: REDIS_HOST, port: REDIS_PORT },
+      }),
       ...options.imports,
     ],
     providers: options.providers ?? [],
