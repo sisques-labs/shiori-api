@@ -14,6 +14,7 @@ import { DeleteDocumentsByKnowledgeBaseCommandHandler } from './application/comm
 import { UpdateDocumentCommandHandler } from './application/commands/update-document/update-document.handler';
 import { CHUNKING_STRATEGY_PORT } from './application/ports/chunking-strategy.port';
 import { DOCUMENT_PROCESSING_QUEUE_PORT } from './application/ports/document-processing-queue.port';
+import { ChunkFindByDocumentIdQueryHandler } from './application/queries/chunk-find-by-document-id/chunk-find-by-document-id.handler';
 import { DocumentFindByCriteriaQueryHandler } from './application/queries/document-find-by-criteria/document-find-by-criteria.handler';
 import { DocumentFindByIdQueryHandler } from './application/queries/document-find-by-id/document-find-by-id.handler';
 import { AssertDocumentViewModelExistsService } from './application/services/read/assert-document-view-model-exists/assert-document-view-model-exists.service';
@@ -57,6 +58,7 @@ const COMMAND_HANDLERS = [
 const QUERY_HANDLERS = [
   DocumentFindByIdQueryHandler,
   DocumentFindByCriteriaQueryHandler,
+  ChunkFindByDocumentIdQueryHandler,
 ];
 
 const APPLICATION_SERVICES = [
@@ -141,9 +143,5 @@ const TRANSPORT_PROVIDERS = [
     ...INFRASTRUCTURE_ADAPTERS,
     ...TRANSPORT_PROVIDERS,
   ],
-  // CHUNK_WRITE_REPOSITORY is exported specifically for `retrieval`'s
-  // ChunkSourcePort adapter — reusing this context's own findByDocumentId
-  // instead of a second persistence path for the same data.
-  exports: [CHUNK_WRITE_REPOSITORY],
 })
 export class DocumentsModule {}

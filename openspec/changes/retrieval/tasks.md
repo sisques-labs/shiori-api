@@ -50,12 +50,12 @@
 - [ ] 5.2 `infrastructure/config/retrieval.config.ts` — `registerAs('retrieval', ...)`: `embeddingBaseUrl`, `embeddingApiKey`, `embeddingModel`, `searchTopKDefault` (`RETRIEVAL_SEARCH_TOP_K_DEFAULT`, default 5), `searchTopKMax` (`RETRIEVAL_SEARCH_TOP_K_MAX`, default 20)
 - [ ] 5.3 `infrastructure/services/bullmq-embedding-processing-queue.service.ts` — implements `IEmbeddingProcessingQueuePort`; `@InjectQueue('retrieval') queue: Queue`
 - [ ] 5.4 `infrastructure/processors/embed-document-chunks.processor.ts` — `@Processor('retrieval') extends WorkerHost`; opens `knowledgeBaseContext.run(job.data.knowledgeBaseId, ...)`; `ChunkSourcePort.findByDocumentId` → `EmbeddingPort.embedBatch` → build `EmbeddingAggregate[]` via builder → `EmbeddingWriteRepo.saveMany`
-- [ ] 5.5 `infrastructure/adapters/document-chunk-source.adapter.ts` — implements `ChunkSourcePort`, injects `documents`' exported `CHUNK_WRITE_REPOSITORY` (`IChunkWriteRepository`) and maps `ChunkAggregate[]` → `IChunkSourceItem[]`
+- [ ] 5.5 `infrastructure/adapters/document-chunk-source.adapter.ts` — implements `ChunkSourcePort`, dispatches `documents`' internal `ChunkFindByDocumentIdQuery` via the global `QueryBus` and maps the result to `IChunkSourceItem[]`
 - [ ] 5.6 `infrastructure/adapters/document-chunked.listener.ts` — `@EventsHandler(DocumentChunkedEvent)` from `@contexts/documents/domain/events/document-chunked/document-chunked.event`; dispatches `EmbeddingProcessingQueuePort.enqueueEmbedding` (not a command — this one enqueues, matching the async-embedding decision)
 - [ ] 5.7 `infrastructure/adapters/document-chunking-started.listener.ts` — `@EventsHandler(DocumentChunkingStartedEvent)`; dispatches `DeleteEmbeddingsByDocumentCommand` synchronously (fast DB-only delete, no queue — clears stale embeddings before the new chunking run completes)
 - [ ] 5.8 `infrastructure/adapters/document-deleted.listener.ts` — `@EventsHandler(DocumentDeletedEvent)` from `@contexts/documents/`; dispatches `DeleteEmbeddingsByDocumentCommand`
 - [ ] 5.9 `infrastructure/adapters/knowledge-base-deleted.listener.ts` — `@EventsHandler(KnowledgeBaseDeletedEvent)` from `@contexts/knowledge-bases/`; dispatches `DeleteEmbeddingsByKnowledgeBaseCommand`
-- [ ] 5.10 Modify `src/contexts/documents/documents.module.ts` — add `CHUNK_WRITE_REPOSITORY` to `exports`
+- [ ] 5.10 Add `documents/application/queries/chunk-find-by-document-id/` (query + handler, internal only) and register the handler in `src/contexts/documents/documents.module.ts`
 
 ## Phase 6: Transport — REST + GraphQL
 
@@ -76,7 +76,7 @@
 
 ## Phase 8: Module Wiring
 
-- [ ] 8.1 `retrieval.module.ts` — named provider arrays; imports `TenancyModule`, `CqrsModule`, `ConfigModule.forFeature(retrievalConfig)`, `TypeOrmModule.forFeature([EmbeddingTypeOrmEntity])`, `BullModule.registerQueue({ name: 'retrieval' })`, and `DocumentsModule` (for the exported `CHUNK_WRITE_REPOSITORY` — the one legitimate case of a context importing another context's module, since it's consuming an explicitly exported provider, not reaching into `documents`' internals)
+- [ ] 8.1 `retrieval.module.ts` — named provider arrays; imports `TenancyModule`, `CqrsModule`, `HttpModule`, `ConfigModule.forFeature(retrievalConfig)`, `TypeOrmModule.forFeature([EmbeddingTypeOrmEntity])`, `BullModule.registerQueue({ name: 'retrieval' })`. No `documents` module import — `DocumentChunkSourceAdapter` only needs the global `QueryBus`
 - [ ] 8.2 Modify `src/contexts/contexts.module.ts` — add `RetrievalModule` (after `DocumentsModule` — order matters for provider resolution given the cross-module dependency)
 - [ ] 8.3 Modify `.env.example` — document `RETRIEVAL_EMBEDDING_BASE_URL`, `RETRIEVAL_EMBEDDING_API_KEY`, `RETRIEVAL_EMBEDDING_MODEL`, `RETRIEVAL_SEARCH_TOP_K_DEFAULT`, `RETRIEVAL_SEARCH_TOP_K_MAX`
 
