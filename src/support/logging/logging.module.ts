@@ -5,7 +5,7 @@ import { WinstonModule } from 'nest-winston';
 @Module({
   imports: [
     WinstonModule.forRoot(
-      createSharedWinstonLoggerOptions({ service: 'nestjs-template' }),
+      createSharedWinstonLoggerOptions({ service: 'shiori-api' }),
     ),
   ],
   exports: [WinstonModule],

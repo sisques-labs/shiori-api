@@ -24,9 +24,9 @@ describe('kafkaConfig', () => {
 
     expect(config).toEqual({
       enabled: false,
-      clientId: 'nestjs-template',
+      clientId: 'shiori-api',
       brokers: [],
-      topicPrefix: 'nestjs-template',
+      topicPrefix: 'shiori-api',
       ssl: false,
       sasl: null,
     });

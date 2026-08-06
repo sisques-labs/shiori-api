@@ -98,7 +98,7 @@ All notable changes to this project will be documented in this file.
 ### Chore
 - First commit (19b9436)
 - **deps-dev:** Bump @types/supertest from 6.0.3 to 7.2.0 (98f7a65)
-- Rename package to sisqueslabs/nestjs-template (41f38b4)
+- Rename package to sisqueslabs/shiori-api (41f38b4)
 - **deps:** Bump @sisques-labs/nestjs-kit to 1.2.1 (5d7cc08)
 - Reset package.json version to 0.0.0 (cc5fcde)
 
