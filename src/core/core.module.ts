@@ -2,6 +2,7 @@ import { appConfig } from './config/app.config';
 import { validateEnv } from './config/env.validation';
 import { kafkaConfig } from './config/kafka.config';
 import { postgresConfig } from './config/postgres.config';
+import { redisConfig, RedisConfig } from './config/redis.config';
 import { sentryConfig } from './config/sentry.config';
 import { AGGREGATE_MODULE_MAP } from './messaging/domain/topics/aggregate-module.map.generated';
 import { HealthModule } from './health/health.module';
@@ -10,6 +11,7 @@ import { TenancyModule } from './tenancy/tenancy.module';
 import { PingResolver } from './transport/graphql/resolvers/ping.resolver';
 import './transport/graphql/registered-enums.graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CqrsModule } from '@nestjs/cqrs';
@@ -32,13 +34,22 @@ const CORE_MODULES = [
   ConfigModule.forRoot({
     isGlobal: true,
     validate: validateEnv,
-    load: [postgresConfig, appConfig, sentryConfig, kafkaConfig],
+    load: [postgresConfig, appConfig, sentryConfig, kafkaConfig, redisConfig],
     cache: true,
   }),
   TypeOrmModule.forRootAsync({
     inject: [ConfigService],
     useFactory: (config: ConfigService) =>
       config.getOrThrow<TypeOrmModuleOptions>('postgres'),
+  }),
+  // Redis-backed job queues for async context pipelines (e.g. documents'
+  // chunking job). One shared connection; each context registers its own
+  // named queue via BullModule.registerQueue({ name }) in its own module.
+  BullModule.forRootAsync({
+    inject: [ConfigService],
+    useFactory: (config: ConfigService) => ({
+      connection: config.getOrThrow<RedisConfig>('redis'),
+    }),
   }),
   // REST controllers are documented via Swagger (see main.ts). GraphQL is
   // wired alongside it — drop whichever transport this service doesn't use.
