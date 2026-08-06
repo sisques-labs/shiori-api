@@ -11,6 +11,7 @@ import { GraphQLError } from 'graphql';
 
 import { resolveDocumentsExceptionStatus } from '@contexts/documents/transport/exceptions/documents-exception.filter';
 import { resolveKnowledgeBasesExceptionStatus } from '@contexts/knowledge-bases/transport/exceptions/knowledge-bases-exception.filter';
+import { resolveRetrievalExceptionStatus } from '@contexts/retrieval/transport/exceptions/retrieval-exception.filter';
 
 /**
  * Per-context HTTP status resolvers, registered here as bounded contexts are
@@ -23,7 +24,11 @@ import { resolveKnowledgeBasesExceptionStatus } from '@contexts/knowledge-bases/
  */
 const EXCEPTION_STATUS_RESOLVERS: Array<
   (exception: BaseException) => number | undefined
-> = [resolveKnowledgeBasesExceptionStatus, resolveDocumentsExceptionStatus];
+> = [
+  resolveKnowledgeBasesExceptionStatus,
+  resolveDocumentsExceptionStatus,
+  resolveRetrievalExceptionStatus,
+];
 
 @Catch(BaseException)
 export class BaseExceptionFilter
