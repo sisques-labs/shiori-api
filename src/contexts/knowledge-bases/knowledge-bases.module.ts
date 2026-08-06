@@ -19,7 +19,6 @@ import { KnowledgeBaseTypeOrmEntity } from './infrastructure/persistence/typeorm
 import { KnowledgeBaseTypeOrmMapper } from './infrastructure/persistence/typeorm/mappers/knowledge-base-typeorm.mapper';
 import { KnowledgeBaseTypeOrmReadRepository } from './infrastructure/persistence/typeorm/repositories/knowledge-base-typeorm-read.repository';
 import { KnowledgeBaseTypeOrmWriteRepository } from './infrastructure/persistence/typeorm/repositories/knowledge-base-typeorm-write.repository';
-import { KnowledgeBaseApiKeyGuard } from './infrastructure/guards/knowledge-base-api-key.guard';
 import { KnowledgeBaseGraphQLMapper } from './transport/graphql/mappers/knowledge-base/knowledge-base.mapper';
 import { KnowledgeBaseMutationsResolver } from './transport/graphql/resolvers/knowledge-base-mutations.resolver';
 import { KnowledgeBaseQueriesResolver } from './transport/graphql/resolvers/knowledge-base-queries.resolver';
@@ -68,11 +67,10 @@ const GRAPHQL_PROVIDERS = [
   KnowledgeBaseGraphQLMapper,
 ];
 
-const TRANSPORT_PROVIDERS = [
-  ...REST_PROVIDERS,
-  ...GRAPHQL_PROVIDERS,
-  KnowledgeBaseApiKeyGuard,
-];
+// KnowledgeBaseApiKeyGuard is provided globally by TenancyModule
+// (src/core/tenancy/) — every context can @UseGuards() it without
+// re-declaring it here.
+const TRANSPORT_PROVIDERS = [...REST_PROVIDERS, ...GRAPHQL_PROVIDERS];
 
 @Module({
   imports: [CqrsModule, TypeOrmModule.forFeature([KnowledgeBaseTypeOrmEntity])],

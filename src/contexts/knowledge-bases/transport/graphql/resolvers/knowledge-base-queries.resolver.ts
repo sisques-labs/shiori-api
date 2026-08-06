@@ -2,8 +2,8 @@ import { Logger, UseGuards } from '@nestjs/common';
 import { Query, Resolver } from '@nestjs/graphql';
 
 import { AssertKnowledgeBaseViewModelExistsService } from '@contexts/knowledge-bases/application/services/read/assert-knowledge-base-view-model-exists/assert-knowledge-base-view-model-exists.service';
-import { CurrentKnowledgeBaseId } from '@contexts/knowledge-bases/infrastructure/decorators/current-knowledge-base-id.decorator';
-import { KnowledgeBaseApiKeyGuard } from '@contexts/knowledge-bases/infrastructure/guards/knowledge-base-api-key.guard';
+import { CurrentKnowledgeBaseId } from '@core/tenancy/current-knowledge-base-id.decorator';
+import { KnowledgeBaseApiKeyGuard } from '@core/tenancy/knowledge-base-api-key.guard';
 
 import { KnowledgeBaseResponseDto } from '../dtos/responses/knowledge-base.response.dto';
 import { KnowledgeBaseGraphQLMapper } from '../mappers/knowledge-base/knowledge-base.mapper';

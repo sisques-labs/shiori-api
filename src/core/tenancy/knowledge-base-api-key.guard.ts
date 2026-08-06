@@ -8,7 +8,7 @@ import { HashApiKeyService } from '@contexts/knowledge-bases/application/service
 import { KnowledgeBaseUnauthorizedException } from '@contexts/knowledge-bases/domain/exceptions/knowledge-base-unauthorized.exception';
 import { KnowledgeBaseViewModel } from '@contexts/knowledge-bases/domain/view-models/knowledge-base.view-model';
 
-import { SKIP_KNOWLEDGE_BASE_AUTH_KEY } from '../decorators/skip-knowledge-base-auth.decorator';
+import { SKIP_KNOWLEDGE_BASE_AUTH_KEY } from './skip-knowledge-base-auth.decorator';
 
 const API_KEY_HEADER = 'x-api-key';
 

@@ -41,13 +41,20 @@ using the cross-cutting tenancy mechanism this context introduces.
   Dispatched exclusively by `KnowledgeBaseApiKeyGuard` to resolve the
   `X-API-Key` header to a tenant.
 
-## Auth: `KnowledgeBaseApiKeyGuard`
+## Auth: `KnowledgeBaseApiKeyGuard` (`src/core/tenancy/`)
 
 Reads the `X-API-Key` header, hashes it, and dispatches
 `KnowledgeBaseFindByApiKeyHashQuery`. No match (or missing header) → 401. A
 match sets `req.knowledgeBaseId`, which `KnowledgeBaseContextInterceptor`
-(in `src/core/tenancy/`) then uses to open the `KnowledgeBaseContext` ALS
-frame for the rest of the request.
+then uses to open the `KnowledgeBaseContext` ALS frame for the rest of the
+request.
+
+The guard lives in `src/core/tenancy/` (registered globally by
+`TenancyModule`, exported for any context to `@UseGuards()`), not inside
+this context — every other context needs the exact same guard to
+authenticate its own routes, so it can't be owned by `knowledge-bases`
+alone. It still depends on `KnowledgeBaseFindByApiKeyHashQuery` from this
+context's `application/queries/`, dispatched via the global `QueryBus`.
 
 Routes annotated `@SkipKnowledgeBaseAuth()` bypass the guard — used only by
 `CreateKnowledgeBase`, since there is no existing key to authenticate with

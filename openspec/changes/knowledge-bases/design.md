@@ -15,11 +15,25 @@ auth instead of JWT+membership:
   lives in `src/core/tenancy/`, not inside the `knowledge-bases` context
   itself — gardenia put the equivalent in `src/shared/` because that
   template has no `src/core/` cross-cutting convention; shiori does.
-- **Credential-specific guard** (`KnowledgeBaseApiKeyGuard`) depends on this
-  context's own `QueryBus` dispatch (`KnowledgeBaseFindByApiKeyHashQuery`),
-  so it lives inside `src/contexts/knowledge-bases/infrastructure/guards/` —
-  same split gardenia uses (`SpaceContext` in `shared/`, `SpaceGuard` inside
-  `contexts/spaces/`).
+- **Credential guard** (`KnowledgeBaseApiKeyGuard`) also lives in
+  `src/core/tenancy/`, alongside the ALS mechanism — **correction from the
+  original plan**: it was first placed inside
+  `src/contexts/knowledge-bases/infrastructure/guards/`, mirroring how
+  gardenia splits `SpaceContext` (shared) from `SpaceGuard` (inside
+  `contexts/spaces/`). That reasoning assumed only `knowledge-bases` itself
+  would ever need it. It doesn't hold: every future context needs the same
+  guard to authenticate its own routes, and gardenia's split works there
+  only because gardenia's auth is JWT+membership (a generic `JwtAuthGuard`
+  already lives outside `spaces`, and `SpaceGuard` layers tenant membership
+  on top for space-scoped routes specifically). Shiori has no such second
+  guard to delegate to — API-key resolution *is* the whole auth mechanism —
+  so it has to be the cross-cutting one. Moved to `src/core/tenancy/` before
+  this PR's history includes a consumer proving the point (see the
+  `documents` change). It still imports
+  `KnowledgeBaseFindByApiKeyHashQuery` from `@contexts/knowledge-bases/`,
+  which is fine — `src/core/**` is exempt from the boundaries ESLint rule
+  (`boundaries/include` only covers `src/contexts/**`), the same precedent
+  `core/filters/base-exception.filter.ts` already uses.
 - The `knowledge-bases` context's **own** repositories are *not*
   tenant-scoped by `createTenantRepository` — a knowledge base IS the tenant
   root, there is nothing above it to scope by. `createTenantRepository` has
@@ -33,7 +47,7 @@ auth instead of JWT+membership:
 | Decision | Choice | Alternatives rejected | Rationale |
 |----------|--------|------------------------|-----------|
 | Tenant credential | Single active API key per KB, SHA-256 hash persisted, plaintext returned once | JWT+membership (gardenia's model) | No user/account concept in MVP scope — the key itself is the identity, matching the earlier debate decision |
-| Tenancy mechanism location | `src/core/tenancy/` (generic ALS+proxy), `src/contexts/knowledge-bases/infrastructure/guards/` (credential-specific guard) | Everything inside `knowledge-bases` context | Matches shiori's own skill ("shared utilities → `src/core/`"); keeps the reusable seam out of the first context's ownership so `documents`/`retrieval` don't cross-import it |
+| Tenancy mechanism location | `src/core/tenancy/` for everything — ALS, proxy, **and** `KnowledgeBaseApiKeyGuard` | Guard inside `knowledge-bases` context (original plan, corrected — see Technical Approach) | Matches shiori's own skill ("shared utilities → `src/core/`"); every context needs the same guard, not just `knowledge-bases`, so it can't live inside one context's ownership without forcing cross-context imports the boundaries ESLint rule rejects |
 | `knowledge-bases`' own repos | Plain TypeORM repos, no `createTenantRepository` wrapping | Self-scope by own `id` | A KB is the tenant root; nothing scopes it. Avoids the bootstrap chicken-and-egg (guard needs to read KB *before* ALS has a tenant id) |
 | `KnowledgeBaseFindByCriteria` | **Omitted** — deliberate exception to the "mandatory, no exception" Criteria rule | Implement per rule | No caller in this auth model is authorized to list across tenants; a working list endpoint would be a data-leak vector via a wiring mistake. See `proposal.md` Deviation 1 |
 | Self-service routes (no `:id`) | `GET/PATCH/DELETE /knowledge-bases/me`, `POST /knowledge-bases/me/rotate-api-key` — id always resolved from the authenticated API key, never from a path/arg param | `GET /knowledge-bases/:id` with a guard-vs-param match check | Removes an entire class of confused-deputy bugs (guard resolves KB A, param requests KB B) by construction — there's no param to mismatch |
@@ -85,7 +99,11 @@ src/core/tenancy/
   create-tenant-repository.factory.spec.ts
   knowledge-base-context.interceptor.ts   — opens ALS frame around next.handle()
   knowledge-base-context.interceptor.spec.ts
-  tenancy.module.ts                       — @Global(); exports KnowledgeBaseContext
+  knowledge-base-api-key.guard.ts         — resolves X-API-Key via KnowledgeBaseFindByApiKeyHashQuery
+  knowledge-base-api-key.guard.spec.ts
+  skip-knowledge-base-auth.decorator.ts
+  current-knowledge-base-id.decorator.ts
+  tenancy.module.ts                       — @Global(); exports KnowledgeBaseContext + KnowledgeBaseApiKeyGuard
 
 src/contexts/knowledge-bases/
   domain/
@@ -149,9 +167,6 @@ src/contexts/knowledge-bases/
     persistence/typeorm/repositories/knowledge-base-typeorm-write.repository.spec.ts
     persistence/typeorm/repositories/knowledge-base-typeorm-read.repository.ts
     persistence/typeorm/repositories/knowledge-base-typeorm-read.repository.spec.ts
-    guards/knowledge-base-api-key.guard.ts
-    guards/knowledge-base-api-key.guard.spec.ts
-    decorators/skip-knowledge-base-auth.decorator.ts
   transport/
     rest/controllers/knowledge-bases.controller.ts
     rest/controllers/knowledge-bases.controller.spec.ts

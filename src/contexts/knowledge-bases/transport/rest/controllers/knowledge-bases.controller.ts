@@ -25,9 +25,9 @@ import { RotateKnowledgeBaseApiKeyCommand } from '@contexts/knowledge-bases/appl
 import { RotateKnowledgeBaseApiKeyResult } from '@contexts/knowledge-bases/application/commands/rotate-knowledge-base-api-key/rotate-knowledge-base-api-key.handler';
 import { UpdateKnowledgeBaseCommand } from '@contexts/knowledge-bases/application/commands/update-knowledge-base/update-knowledge-base.command';
 import { AssertKnowledgeBaseViewModelExistsService } from '@contexts/knowledge-bases/application/services/read/assert-knowledge-base-view-model-exists/assert-knowledge-base-view-model-exists.service';
-import { CurrentKnowledgeBaseId } from '@contexts/knowledge-bases/infrastructure/decorators/current-knowledge-base-id.decorator';
-import { SkipKnowledgeBaseAuth } from '@contexts/knowledge-bases/infrastructure/decorators/skip-knowledge-base-auth.decorator';
-import { KnowledgeBaseApiKeyGuard } from '@contexts/knowledge-bases/infrastructure/guards/knowledge-base-api-key.guard';
+import { CurrentKnowledgeBaseId } from '@core/tenancy/current-knowledge-base-id.decorator';
+import { SkipKnowledgeBaseAuth } from '@core/tenancy/skip-knowledge-base-auth.decorator';
+import { KnowledgeBaseApiKeyGuard } from '@core/tenancy/knowledge-base-api-key.guard';
 
 import { CreateKnowledgeBaseDto } from '../dtos/create-knowledge-base.dto';
 import { KnowledgeBaseCreatedRestResponseDto } from '../dtos/knowledge-base-created-rest-response.dto';
