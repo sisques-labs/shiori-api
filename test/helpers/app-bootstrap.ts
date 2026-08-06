@@ -15,12 +15,37 @@ export interface E2EContext {
   close: () => Promise<void>;
 }
 
-export async function createE2EApp(): Promise<E2EContext> {
+export interface E2EProviderOverride {
+  provide: unknown;
+  useValue: unknown;
+}
+
+export interface CreateE2EAppOptions {
+  /**
+   * DI tokens to swap for a test double before the module compiles — e.g.
+   * a bounded context's outbound HTTP port that would otherwise make a real
+   * network call (see `retrieval`'s `EMBEDDING_PORT`, stubbed in its e2e
+   * specs since there is no real/mocked embeddings endpoint reachable in
+   * CI). Omit entirely for specs that don't need it — existing callers are
+   * unaffected.
+   */
+  overrideProviders?: E2EProviderOverride[];
+}
+
+export async function createE2EApp(
+  options: CreateE2EAppOptions = {},
+): Promise<E2EContext> {
   await bootstrapTestDataSource();
 
-  const moduleFixture = await Test.createTestingModule({
+  const builder = Test.createTestingModule({
     imports: [AppModule],
-  }).compile();
+  });
+
+  for (const override of options.overrideProviders ?? []) {
+    builder.overrideProvider(override.provide).useValue(override.useValue);
+  }
+
+  const moduleFixture = await builder.compile();
 
   const app = moduleFixture.createNestApplication();
 
