@@ -9,6 +9,8 @@ import { BaseException } from '@sisques-labs/nestjs-kit';
 import { Response } from 'express';
 import { GraphQLError } from 'graphql';
 
+import { resolveKnowledgeBasesExceptionStatus } from '@contexts/knowledge-bases/transport/exceptions/knowledge-bases-exception.filter';
+
 /**
  * Per-context HTTP status resolvers, registered here as bounded contexts are
  * added. Each function returns a status for the exceptions it recognises, or
@@ -20,7 +22,7 @@ import { GraphQLError } from 'graphql';
  */
 const EXCEPTION_STATUS_RESOLVERS: Array<
   (exception: BaseException) => number | undefined
-> = [];
+> = [resolveKnowledgeBasesExceptionStatus];
 
 @Catch(BaseException)
 export class BaseExceptionFilter

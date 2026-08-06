@@ -1,0 +1,62 @@
+import { CommandBus } from '@nestjs/cqrs';
+import { MutationResponseGraphQLMapper } from '@sisques-labs/nestjs-kit/graphql';
+
+import { CreateKnowledgeBaseGraphQLDto } from '../dtos/requests/create-knowledge-base-graphql.dto';
+import { KnowledgeBaseMutationsResolver } from './knowledge-base-mutations.resolver';
+
+describe('KnowledgeBaseMutationsResolver', () => {
+  let commandBus: jest.Mocked<CommandBus>;
+  let mutationResponseGraphQLMapper: jest.Mocked<MutationResponseGraphQLMapper>;
+  let resolver: KnowledgeBaseMutationsResolver;
+
+  beforeEach(() => {
+    commandBus = { execute: jest.fn() } as any;
+    mutationResponseGraphQLMapper = {
+      toResponseDto: jest.fn((props) => props),
+    } as any;
+    resolver = new KnowledgeBaseMutationsResolver(
+      commandBus,
+      mutationResponseGraphQLMapper,
+    );
+  });
+
+  it('createKnowledgeBase returns the plaintext apiKey', async () => {
+    commandBus.execute.mockResolvedValue({
+      id: 'kb-1',
+      name: 'Docs',
+      description: null,
+      apiKey: 'kb_plaintext',
+      createdAt: new Date(),
+    });
+
+    const input: CreateKnowledgeBaseGraphQLDto = { name: 'Docs' };
+    const result = await resolver.createKnowledgeBase(input);
+
+    expect(result.apiKey).toBe('kb_plaintext');
+  });
+
+  it('updateKnowledgeBase dispatches with the caller’s own id', async () => {
+    const id = 'e3c1a1b0-0000-4000-8000-000000000001';
+
+    await resolver.updateKnowledgeBase({ name: 'Docs v2' }, id);
+
+    expect(commandBus.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: expect.objectContaining({ value: id }),
+      }),
+    );
+    expect(mutationResponseGraphQLMapper.toResponseDto).toHaveBeenCalledWith(
+      expect.objectContaining({ id }),
+    );
+  });
+
+  it('rotateKnowledgeBaseApiKey returns only the new key', async () => {
+    commandBus.execute.mockResolvedValue({ apiKey: 'kb_new' });
+
+    const result = await resolver.rotateKnowledgeBaseApiKey(
+      'e3c1a1b0-0000-4000-8000-000000000001',
+    );
+
+    expect(result.apiKey).toBe('kb_new');
+  });
+});

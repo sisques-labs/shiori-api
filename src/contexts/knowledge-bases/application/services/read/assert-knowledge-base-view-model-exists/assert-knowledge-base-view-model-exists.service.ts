@@ -1,0 +1,22 @@
+import { Inject, Injectable } from '@nestjs/common';
+
+import { KnowledgeBaseNotFoundException } from '@contexts/knowledge-bases/domain/exceptions/knowledge-base-not-found.exception';
+import {
+  KNOWLEDGE_BASE_READ_REPOSITORY,
+  IKnowledgeBaseReadRepository,
+} from '@contexts/knowledge-bases/domain/repositories/read/knowledge-base-read.repository';
+import { KnowledgeBaseViewModel } from '@contexts/knowledge-bases/domain/view-models/knowledge-base.view-model';
+
+@Injectable()
+export class AssertKnowledgeBaseViewModelExistsService {
+  constructor(
+    @Inject(KNOWLEDGE_BASE_READ_REPOSITORY)
+    private readonly readRepository: IKnowledgeBaseReadRepository,
+  ) {}
+
+  async execute(id: string): Promise<KnowledgeBaseViewModel> {
+    const vm = await this.readRepository.findById(id);
+    if (!vm) throw new KnowledgeBaseNotFoundException(id);
+    return vm;
+  }
+}

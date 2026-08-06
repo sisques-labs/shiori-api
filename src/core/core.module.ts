@@ -6,6 +6,7 @@ import { sentryConfig } from './config/sentry.config';
 import { AGGREGATE_MODULE_MAP } from './messaging/domain/topics/aggregate-module.map.generated';
 import { HealthModule } from './health/health.module';
 import { ObservabilityModule } from './observability/observability.module';
+import { TenancyModule } from './tenancy/tenancy.module';
 import { PingResolver } from './transport/graphql/resolvers/ping.resolver';
 import './transport/graphql/registered-enums.graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
@@ -27,6 +28,7 @@ const CORE_MODULES = [
   SupportModule,
   CqrsModule.forRoot(),
   SharedGraphQLModule,
+  TenancyModule,
   ConfigModule.forRoot({
     isGlobal: true,
     validate: validateEnv,
