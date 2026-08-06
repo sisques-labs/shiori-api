@@ -1,9 +1,11 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
 
 import { CreateKnowledgeBases1780000000001 } from '../../src/database/migrations/1780000000001-CreateKnowledgeBases';
+import { CreateDocuments1780000000002 } from '../../src/database/migrations/1780000000002-CreateDocuments';
 
 const TEST_MIGRATIONS: DataSourceOptions['migrations'] = [
   CreateKnowledgeBases1780000000001,
+  CreateDocuments1780000000002,
 ];
 
 export function getTestDataSourceOptions(): DataSourceOptions {
