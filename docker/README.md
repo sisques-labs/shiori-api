@@ -1,4 +1,4 @@
-# NestJS Template
+# Shiori API
 
 Sisques Labs' base template for new NestJS services: DDD + CQRS + Hexagonal
 architecture, TypeORM/PostgreSQL, optional Kafka event forwarding, REST
@@ -17,7 +17,7 @@ docker run -p 3000:3000 \
   -e DATABASE_USERNAME=postgres \
   -e DATABASE_PASSWORD=secret \
   -e DATABASE_DATABASE=nestjs_template_db \
-  sisqueslabs/nestjs-template:latest
+  sisqueslabs/shiori-api:latest
 ```
 
 The container needs a reachable PostgreSQL instance — it does not bundle one.
@@ -68,4 +68,4 @@ See the project's `.env.example` for the full list.
 
 ## Source
 
-https://github.com/sisques-labs/nestjs-template
+https://github.com/sisques-labs/shiori-api
