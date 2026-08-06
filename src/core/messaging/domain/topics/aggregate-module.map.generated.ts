@@ -13,5 +13,7 @@
  * @see scripts/generate-aggregate-module-map.ts
  */
 export const AGGREGATE_MODULE_MAP: Readonly<Record<string, string>> = {
+  ChunkAggregate: 'documents',
+  DocumentAggregate: 'documents',
   KnowledgeBaseAggregate: 'knowledge-bases',
 };
