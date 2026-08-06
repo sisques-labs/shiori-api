@@ -28,9 +28,9 @@ async function bootstrap() {
   app.useGlobalFilters(new BaseExceptionFilter());
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('NestJS Template')
-    .setDescription('Sisques Labs NestJS service template')
-    .setVersion('0.1.0')
+    .setTitle('Shiori API')
+    .setDescription('Shiori — open-source RAG platform')
+    .setVersion('0.0.0')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document);
