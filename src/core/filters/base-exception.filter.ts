@@ -9,6 +9,7 @@ import { BaseException } from '@sisques-labs/nestjs-kit';
 import { Response } from 'express';
 import { GraphQLError } from 'graphql';
 
+import { resolveDocumentsExceptionStatus } from '@contexts/documents/transport/exceptions/documents-exception.filter';
 import { resolveKnowledgeBasesExceptionStatus } from '@contexts/knowledge-bases/transport/exceptions/knowledge-bases-exception.filter';
 
 /**
@@ -22,7 +23,7 @@ import { resolveKnowledgeBasesExceptionStatus } from '@contexts/knowledge-bases/
  */
 const EXCEPTION_STATUS_RESOLVERS: Array<
   (exception: BaseException) => number | undefined
-> = [resolveKnowledgeBasesExceptionStatus];
+> = [resolveKnowledgeBasesExceptionStatus, resolveDocumentsExceptionStatus];
 
 @Catch(BaseException)
 export class BaseExceptionFilter
