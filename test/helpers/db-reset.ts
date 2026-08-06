@@ -9,6 +9,7 @@ export const TRUNCATE_TABLES: readonly string[] = [
   'knowledge_bases',
   'documents',
   'chunks',
+  'embeddings',
 ];
 
 /**
