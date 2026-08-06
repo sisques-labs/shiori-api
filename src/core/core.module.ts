@@ -6,6 +6,7 @@ import { redisConfig, RedisConfig } from './config/redis.config';
 import { sentryConfig } from './config/sentry.config';
 import { AGGREGATE_MODULE_MAP } from './messaging/domain/topics/aggregate-module.map.generated';
 import { HealthModule } from './health/health.module';
+import { McpContextBuilder } from './mcp/mcp-context.builder';
 import { ObservabilityModule } from './observability/observability.module';
 import { TenancyModule } from './tenancy/tenancy.module';
 import { PingResolver } from './transport/graphql/resolvers/ping.resolver';
@@ -66,9 +67,11 @@ const CORE_MODULES = [
   MetricsModule.forRoot({ appLabel: 'shiori-api' }),
   MessagingModule.forRoot({ aggregateModuleMap: AGGREGATE_MODULE_MAP }),
   HealthModule,
-  // No auth yet, so the default context builder (`{ requestId }`) is used —
-  // pass `contextBuilder` here once this service resolves an identity.
-  McpModule.forRoot({ name: 'shiori-api', version: '0.1.0' }),
+  McpModule.forRoot({
+    name: 'shiori-api',
+    version: '0.1.0',
+    contextBuilder: McpContextBuilder,
+  }),
 ];
 
 @Module({
