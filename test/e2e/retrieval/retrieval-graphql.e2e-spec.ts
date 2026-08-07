@@ -93,6 +93,7 @@ describe('Retrieval GraphQL (e2e)', () => {
       .withEmbedding(vector)
       .withModel('test-model')
       .withCreatedAt(new Date())
+      .withUpdatedAt(new Date())
       .build();
   }
 

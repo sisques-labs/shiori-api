@@ -17,6 +17,7 @@ export class CreateEmbeddings1780000000003 implements MigrationInterface {
         "embedding" vector(1536) NOT NULL,
         "model" character varying(100) NOT NULL,
         "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+        "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
         CONSTRAINT "PK_embeddings_id" PRIMARY KEY ("id"),
         CONSTRAINT "FK_embeddings_document_id" FOREIGN KEY ("document_id")
           REFERENCES "documents" ("id") ON DELETE CASCADE,

@@ -20,6 +20,7 @@ export class EmbeddingTypeOrmMapper {
       .withEmbedding(entity.embedding)
       .withModel(entity.model)
       .withCreatedAt(entity.createdAt)
+      .withUpdatedAt(entity.updatedAt)
       .build();
   }
 
@@ -35,6 +36,7 @@ export class EmbeddingTypeOrmMapper {
     entity.embedding = p.embedding;
     entity.model = p.model;
     entity.createdAt = p.createdAt;
+    entity.updatedAt = p.updatedAt;
     return entity;
   }
 
@@ -49,6 +51,7 @@ export class EmbeddingTypeOrmMapper {
       .withEmbedding(entity.embedding)
       .withModel(entity.model)
       .withCreatedAt(entity.createdAt)
+      .withUpdatedAt(entity.updatedAt)
       .buildViewModel();
   }
 }

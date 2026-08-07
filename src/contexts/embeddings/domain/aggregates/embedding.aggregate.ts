@@ -1,4 +1,4 @@
-import { DateValueObject, UuidValueObject } from '@sisques-labs/nestjs-kit';
+import { BaseAggregate, UuidValueObject } from '@sisques-labs/nestjs-kit';
 
 import { IEmbedding } from '@contexts/embeddings/domain/interfaces/embedding.interface';
 import { IEmbeddingPrimitives } from '@contexts/embeddings/domain/primitives/embedding.primitives';
@@ -9,12 +9,13 @@ import { EmbeddingModelValueObject } from '@contexts/embeddings/domain/value-obj
 import { EmbeddingVectorValueObject } from '@contexts/embeddings/domain/value-objects/embedding-vector/embedding-vector.value-object';
 
 /**
- * Hydration-only, no domain events — mirrors `ChunkAggregate` in
- * `documents`: derived data with a single producer
+ * No domain events — derived data with a single producer
  * (`EmbedDocumentChunksProcessor`), never independently created, updated,
- * or deleted from a transport entry point.
+ * or deleted from a transport entry point. Extends `BaseAggregate` for
+ * consistency with the rest of the codebase; `updatedAt` is set once at
+ * creation time and never touched again.
  */
-export class EmbeddingAggregate {
+export class EmbeddingAggregate extends BaseAggregate {
   private readonly _id: EmbeddingIdValueObject;
   private readonly _knowledgeBaseId: UuidValueObject;
   private readonly _documentId: UuidValueObject;
@@ -23,9 +24,9 @@ export class EmbeddingAggregate {
   private readonly _chunkPosition: EmbeddingChunkPositionValueObject;
   private readonly _embedding: EmbeddingVectorValueObject;
   private readonly _model: EmbeddingModelValueObject;
-  private readonly _createdAt: DateValueObject;
 
   constructor(props: IEmbedding) {
+    super(props.createdAt, props.updatedAt);
     this._id = props.id;
     this._knowledgeBaseId = props.knowledgeBaseId;
     this._documentId = props.documentId;
@@ -34,7 +35,6 @@ export class EmbeddingAggregate {
     this._chunkPosition = props.chunkPosition;
     this._embedding = props.embedding;
     this._model = props.model;
-    this._createdAt = props.createdAt;
   }
 
   public toPrimitives(): IEmbeddingPrimitives {
@@ -47,7 +47,8 @@ export class EmbeddingAggregate {
       chunkPosition: this._chunkPosition.value,
       embedding: this._embedding.value,
       model: this._model.value,
-      createdAt: this._createdAt.value,
+      createdAt: this.createdAt.value,
+      updatedAt: this.updatedAt.value,
     };
   }
 
@@ -81,9 +82,5 @@ export class EmbeddingAggregate {
 
   get model(): EmbeddingModelValueObject {
     return this._model;
-  }
-
-  get createdAt(): DateValueObject {
-    return this._createdAt;
   }
 }

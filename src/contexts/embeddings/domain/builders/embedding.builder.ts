@@ -14,12 +14,6 @@ import { EmbeddingIdValueObject } from '@contexts/embeddings/domain/value-object
 import { EmbeddingModelValueObject } from '@contexts/embeddings/domain/value-objects/embedding-model/embedding-model.value-object';
 import { EmbeddingVectorValueObject } from '@contexts/embeddings/domain/value-objects/embedding-vector/embedding-vector.value-object';
 
-/**
- * EmbeddingAggregate has no `updatedAt` (hydration-only, never
- * independently updated), so `validate()` is overridden rather than
- * delegating to `super.validate()` — the base implementation also requires
- * `_updatedAt`. Mirrors `ChunkBuilder` in `documents`.
- */
 @Injectable()
 export class EmbeddingBuilder extends BaseBuilder<
   EmbeddingAggregate,
@@ -69,10 +63,7 @@ export class EmbeddingBuilder extends BaseBuilder<
   }
 
   public override validate(): void {
-    if (!this._id) throw new FieldIsRequiredException('id');
-    if (this._createdAt == null) {
-      throw new FieldIsRequiredException('createdAt');
-    }
+    super.validate();
     if (!this._knowledgeBaseId)
       throw new FieldIsRequiredException('knowledgeBaseId');
     if (!this._documentId) throw new FieldIsRequiredException('documentId');
@@ -96,6 +87,7 @@ export class EmbeddingBuilder extends BaseBuilder<
       embedding: new EmbeddingVectorValueObject(this._embedding),
       model: new EmbeddingModelValueObject(this._model),
       createdAt: new DateValueObject(this._createdAt),
+      updatedAt: new DateValueObject(this._updatedAt),
     });
   }
 
@@ -111,6 +103,7 @@ export class EmbeddingBuilder extends BaseBuilder<
       embedding: this._embedding,
       model: this._model,
       createdAt: this._createdAt,
+      updatedAt: this._updatedAt,
     });
   }
 }
