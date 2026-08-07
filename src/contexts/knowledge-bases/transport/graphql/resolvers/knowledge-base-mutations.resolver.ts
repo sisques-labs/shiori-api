@@ -20,6 +20,7 @@ import { CreateKnowledgeBaseGraphQLDto } from '../dtos/requests/create-knowledge
 import { UpdateKnowledgeBaseGraphQLDto } from '../dtos/requests/update-knowledge-base-graphql.dto';
 import { KnowledgeBaseCreatedResponseDto } from '../dtos/responses/knowledge-base-created.response.dto';
 import { KnowledgeBaseRotatedApiKeyResponseDto } from '../dtos/responses/knowledge-base-rotated-api-key.response.dto';
+import { KnowledgeBaseGraphQLMapper } from '../mappers/knowledge-base/knowledge-base.mapper';
 
 @UseGuards(KnowledgeBaseApiKeyGuard)
 @Resolver()
@@ -29,6 +30,7 @@ export class KnowledgeBaseMutationsResolver {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly mutationResponseGraphQLMapper: MutationResponseGraphQLMapper,
+    private readonly graphQLMapper: KnowledgeBaseGraphQLMapper,
   ) {}
 
   @SkipKnowledgeBaseAuth()
@@ -48,14 +50,7 @@ export class KnowledgeBaseMutationsResolver {
       }),
     );
 
-    const dto = new KnowledgeBaseCreatedResponseDto();
-    dto.id = result.id;
-    dto.name = result.name;
-    dto.description = result.description;
-    dto.createdAt = result.createdAt;
-    dto.updatedAt = result.createdAt;
-    dto.apiKey = result.apiKey;
-    return dto;
+    return this.graphQLMapper.toCreatedResponseDto(result);
   }
 
   @Mutation(() => MutationResponseDto)
@@ -108,8 +103,6 @@ export class KnowledgeBaseMutationsResolver {
       RotateKnowledgeBaseApiKeyResult
     >(new RotateKnowledgeBaseApiKeyCommand({ id: knowledgeBaseId }));
 
-    const dto = new KnowledgeBaseRotatedApiKeyResponseDto();
-    dto.apiKey = result.apiKey;
-    return dto;
+    return this.graphQLMapper.toRotatedApiKeyResponseDto(result);
   }
 }

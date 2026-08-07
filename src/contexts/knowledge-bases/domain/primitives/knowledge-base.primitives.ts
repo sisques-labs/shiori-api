@@ -5,7 +5,3 @@ export interface IKnowledgeBasePrimitives extends BasePrimitives {
   description: string | null;
   apiKeyHash: string;
 }
-
-export type IKnowledgeBaseBasePrimitives = Partial<
-  Pick<IKnowledgeBasePrimitives, 'name' | 'description'>
->;

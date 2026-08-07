@@ -1,7 +1,4 @@
-import {
-  IKnowledgeBaseBasePrimitives,
-  IKnowledgeBasePrimitives,
-} from '@contexts/knowledge-bases/domain/primitives/knowledge-base.primitives';
+import { IKnowledgeBasePrimitives } from '@contexts/knowledge-bases/domain/primitives/knowledge-base.primitives';
 import { KnowledgeBaseIdValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-id/knowledge-base-id.value-object';
 import { KnowledgeBaseDescriptionValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-description/knowledge-base-description.value-object';
 import { KnowledgeBaseNameValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-name/knowledge-base-name.value-object';
@@ -10,7 +7,7 @@ export type UpdateKnowledgeBaseCommandInput = Pick<
   IKnowledgeBasePrimitives,
   'id'
 > &
-  IKnowledgeBaseBasePrimitives;
+  Partial<Pick<IKnowledgeBasePrimitives, 'name' | 'description'>>;
 
 export class UpdateKnowledgeBaseCommand {
   public readonly id: KnowledgeBaseIdValueObject;

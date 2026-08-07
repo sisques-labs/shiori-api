@@ -68,14 +68,7 @@ export class KnowledgeBasesController {
       }),
     );
 
-    const response = new KnowledgeBaseCreatedRestResponseDto();
-    response.id = result.id;
-    response.name = result.name;
-    response.description = result.description;
-    response.createdAt = result.createdAt;
-    response.updatedAt = result.createdAt;
-    response.apiKey = result.apiKey;
-    return response;
+    return this.restMapper.toCreatedResponse(result);
   }
 
   @Get('me')
@@ -153,8 +146,6 @@ export class KnowledgeBasesController {
       RotateKnowledgeBaseApiKeyResult
     >(new RotateKnowledgeBaseApiKeyCommand({ id: knowledgeBaseId }));
 
-    const response = new KnowledgeBaseRotatedApiKeyRestResponseDto();
-    response.apiKey = result.apiKey;
-    return response;
+    return this.restMapper.toRotatedApiKeyResponse(result);
   }
 }

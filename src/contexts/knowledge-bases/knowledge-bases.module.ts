@@ -72,7 +72,6 @@ const GRAPHQL_PROVIDERS = [
 // KnowledgeBaseApiKeyGuard is provided by TenancyModule (imported below) —
 // every context that imports TenancyModule can @UseGuards() it without
 // re-declaring it.
-const TRANSPORT_PROVIDERS = [...REST_PROVIDERS, ...GRAPHQL_PROVIDERS];
 
 @Module({
   imports: [
@@ -88,7 +87,9 @@ const TRANSPORT_PROVIDERS = [...REST_PROVIDERS, ...GRAPHQL_PROVIDERS];
     ...DOMAIN_BUILDERS,
     ...INFRASTRUCTURE_MAPPERS,
     ...INFRASTRUCTURE_REPOSITORIES,
-    ...TRANSPORT_PROVIDERS,
+    ...REST_PROVIDERS,
+    ...GRAPHQL_PROVIDERS,
   ],
+  exports: [],
 })
 export class KnowledgeBasesModule {}

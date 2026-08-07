@@ -2,11 +2,13 @@ import { CommandBus } from '@nestjs/cqrs';
 import { MutationResponseGraphQLMapper } from '@sisques-labs/nestjs-kit/graphql';
 
 import { CreateKnowledgeBaseGraphQLDto } from '../dtos/requests/create-knowledge-base-graphql.dto';
+import { KnowledgeBaseGraphQLMapper } from '../mappers/knowledge-base/knowledge-base.mapper';
 import { KnowledgeBaseMutationsResolver } from './knowledge-base-mutations.resolver';
 
 describe('KnowledgeBaseMutationsResolver', () => {
   let commandBus: jest.Mocked<CommandBus>;
   let mutationResponseGraphQLMapper: jest.Mocked<MutationResponseGraphQLMapper>;
+  let graphQLMapper: KnowledgeBaseGraphQLMapper;
   let resolver: KnowledgeBaseMutationsResolver;
 
   beforeEach(() => {
@@ -14,9 +16,11 @@ describe('KnowledgeBaseMutationsResolver', () => {
     mutationResponseGraphQLMapper = {
       toResponseDto: jest.fn((props) => props),
     } as any;
+    graphQLMapper = new KnowledgeBaseGraphQLMapper();
     resolver = new KnowledgeBaseMutationsResolver(
       commandBus,
       mutationResponseGraphQLMapper,
+      graphQLMapper,
     );
   });
 
