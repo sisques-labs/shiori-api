@@ -1,14 +1,16 @@
-import { DateValueObject, UuidValueObject } from '@sisques-labs/nestjs-kit';
+import {
+  DateValueObject,
+  InvalidVectorException,
+  UuidValueObject,
+  VectorValueObject,
+} from '@sisques-labs/nestjs-kit';
 
-import { InvalidEmbeddingVectorDimensionException } from '@contexts/embeddings/domain/exceptions/invalid-embedding-vector-dimension.exception';
 import { EmbeddingChunkPositionValueObject } from '@contexts/embeddings/domain/value-objects/embedding-chunk-position/embedding-chunk-position.value-object';
 import { EmbeddingChunkTextValueObject } from '@contexts/embeddings/domain/value-objects/embedding-chunk-text/embedding-chunk-text.value-object';
 import { EmbeddingIdValueObject } from '@contexts/embeddings/domain/value-objects/embedding-id/embedding-id.value-object';
 import { EmbeddingModelValueObject } from '@contexts/embeddings/domain/value-objects/embedding-model/embedding-model.value-object';
-import {
-  EMBEDDING_VECTOR_DIMENSIONS,
-  EmbeddingVectorValueObject,
-} from '@contexts/embeddings/domain/value-objects/embedding-vector/embedding-vector.value-object';
+import { EMBEDDING_VECTOR_DIMENSIONS } from '@contexts/embeddings/domain/value-objects/embedding-vector/embedding-vector.value-object';
+import { EmbeddingBuilder } from '@contexts/embeddings/domain/builders/embedding.builder';
 
 import { EmbeddingAggregate } from './embedding.aggregate';
 
@@ -30,7 +32,9 @@ describe('EmbeddingAggregate', () => {
       chunkId,
       chunkText: new EmbeddingChunkTextValueObject('some chunk text'),
       chunkPosition: new EmbeddingChunkPositionValueObject(3),
-      embedding: new EmbeddingVectorValueObject(vector()),
+      embedding: new VectorValueObject(vector(), {
+        dimensions: EMBEDDING_VECTOR_DIMENSIONS,
+      }),
       model: new EmbeddingModelValueObject('text-embedding-3-small'),
       createdAt: new DateValueObject(now),
       updatedAt: new DateValueObject(now),
@@ -60,7 +64,9 @@ describe('EmbeddingAggregate', () => {
       chunkId,
       chunkText: new EmbeddingChunkTextValueObject('text'),
       chunkPosition: new EmbeddingChunkPositionValueObject(0),
-      embedding: new EmbeddingVectorValueObject(v),
+      embedding: new VectorValueObject(v, {
+        dimensions: EMBEDDING_VECTOR_DIMENSIONS,
+      }),
       model: new EmbeddingModelValueObject('m'),
       createdAt: new DateValueObject(now),
       updatedAt: new DateValueObject(now),
@@ -81,22 +87,27 @@ describe('EmbeddingAggregate', () => {
   });
 });
 
-describe('EmbeddingVectorValueObject', () => {
-  it('accepts a vector of exactly the expected dimension', () => {
-    expect(() => new EmbeddingVectorValueObject(vector())).not.toThrow();
+describe('EmbeddingBuilder — embedding vector dimension', () => {
+  function buildWithVector(embedding: number[]): EmbeddingAggregate {
+    return new EmbeddingBuilder()
+      .withId(EmbeddingIdValueObject.generate().value)
+      .withKnowledgeBaseId(UuidValueObject.generate().value)
+      .withDocumentId(UuidValueObject.generate().value)
+      .withChunkId(UuidValueObject.generate().value)
+      .withChunkText('text')
+      .withChunkPosition(0)
+      .withEmbedding(embedding)
+      .withModel('m')
+      .withCreatedAt(new Date())
+      .withUpdatedAt(new Date())
+      .build();
+  }
+
+  it('accepts a vector of exactly EMBEDDING_VECTOR_DIMENSIONS', () => {
+    expect(() => buildWithVector(vector())).not.toThrow();
   });
 
   it('rejects a vector of the wrong dimension', () => {
-    expect(() => new EmbeddingVectorValueObject([1, 2, 3])).toThrow(
-      InvalidEmbeddingVectorDimensionException,
-    );
-  });
-
-  it('is immutable — mutating the returned array does not affect the VO', () => {
-    const vo = new EmbeddingVectorValueObject(vector());
-    const returned = vo.value;
-    returned[0] = 999;
-
-    expect(vo.value[0]).not.toBe(999);
+    expect(() => buildWithVector([1, 2, 3])).toThrow(InvalidVectorException);
   });
 });

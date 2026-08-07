@@ -101,7 +101,8 @@ returned to callers is `1 - cosine_distance` (higher = more similar).
 
 pgvector requires a fixed column width per table. `1536` (OpenAI
 `text-embedding-3-small`/`ada-002`'s dimension) is hardcoded in both the
-migration and `EmbeddingVectorValueObject`. Switching to a
+migration and `EMBEDDING_VECTOR_DIMENSIONS`, passed as the `dimensions`
+option to `@sisques-labs/nestjs-kit`'s `VectorValueObject`. Switching to a
 differently-dimensioned embedding model requires a new migration — this
 is not solved generically in the MVP (see `openspec/changes/retrieval/design.md`
 Open Questions, written before this context split).

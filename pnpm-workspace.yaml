@@ -7,3 +7,5 @@ allowBuilds:
   protobufjs: true
   ssh2: true
   unrs-resolver: true
+minimumReleaseAgeExclude:
+  - '@sisques-labs/nestjs-kit@1.6.1'

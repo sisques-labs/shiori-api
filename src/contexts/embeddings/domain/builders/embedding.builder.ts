@@ -4,6 +4,7 @@ import {
   DateValueObject,
   FieldIsRequiredException,
   UuidValueObject,
+  VectorValueObject,
 } from '@sisques-labs/nestjs-kit';
 
 import { EmbeddingAggregate } from '@contexts/embeddings/domain/aggregates/embedding.aggregate';
@@ -12,7 +13,7 @@ import { EmbeddingChunkPositionValueObject } from '@contexts/embeddings/domain/v
 import { EmbeddingChunkTextValueObject } from '@contexts/embeddings/domain/value-objects/embedding-chunk-text/embedding-chunk-text.value-object';
 import { EmbeddingIdValueObject } from '@contexts/embeddings/domain/value-objects/embedding-id/embedding-id.value-object';
 import { EmbeddingModelValueObject } from '@contexts/embeddings/domain/value-objects/embedding-model/embedding-model.value-object';
-import { EmbeddingVectorValueObject } from '@contexts/embeddings/domain/value-objects/embedding-vector/embedding-vector.value-object';
+import { EMBEDDING_VECTOR_DIMENSIONS } from '@contexts/embeddings/domain/value-objects/embedding-vector/embedding-vector.value-object';
 
 @Injectable()
 export class EmbeddingBuilder extends BaseBuilder<
@@ -84,7 +85,9 @@ export class EmbeddingBuilder extends BaseBuilder<
       chunkId: new UuidValueObject(this._chunkId),
       chunkText: new EmbeddingChunkTextValueObject(this._chunkText),
       chunkPosition: new EmbeddingChunkPositionValueObject(this._chunkPosition),
-      embedding: new EmbeddingVectorValueObject(this._embedding),
+      embedding: new VectorValueObject(this._embedding, {
+        dimensions: EMBEDDING_VECTOR_DIMENSIONS,
+      }),
       model: new EmbeddingModelValueObject(this._model),
       createdAt: new DateValueObject(this._createdAt),
       updatedAt: new DateValueObject(this._updatedAt),
