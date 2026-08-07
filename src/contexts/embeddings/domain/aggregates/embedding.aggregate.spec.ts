@@ -2,14 +2,14 @@ import {
   DateValueObject,
   InvalidVectorException,
   UuidValueObject,
-  VectorValueObject,
 } from '@sisques-labs/nestjs-kit';
 
+import { EMBEDDING_VECTOR_DIMENSIONS } from '@contexts/embeddings/domain/constants/embedding-vector-dimensions.constant';
 import { EmbeddingChunkPositionValueObject } from '@contexts/embeddings/domain/value-objects/embedding-chunk-position/embedding-chunk-position.value-object';
 import { EmbeddingChunkTextValueObject } from '@contexts/embeddings/domain/value-objects/embedding-chunk-text/embedding-chunk-text.value-object';
 import { EmbeddingIdValueObject } from '@contexts/embeddings/domain/value-objects/embedding-id/embedding-id.value-object';
 import { EmbeddingModelValueObject } from '@contexts/embeddings/domain/value-objects/embedding-model/embedding-model.value-object';
-import { EMBEDDING_VECTOR_DIMENSIONS } from '@contexts/embeddings/domain/value-objects/embedding-vector/embedding-vector.value-object';
+import { EmbeddingVectorValueObject } from '@contexts/embeddings/domain/value-objects/embedding-vector/embedding-vector.value-object';
 import { EmbeddingBuilder } from '@contexts/embeddings/domain/builders/embedding.builder';
 
 import { EmbeddingAggregate } from './embedding.aggregate';
@@ -32,9 +32,7 @@ describe('EmbeddingAggregate', () => {
       chunkId,
       chunkText: new EmbeddingChunkTextValueObject('some chunk text'),
       chunkPosition: new EmbeddingChunkPositionValueObject(3),
-      embedding: new VectorValueObject(vector(), {
-        dimensions: EMBEDDING_VECTOR_DIMENSIONS,
-      }),
+      embedding: new EmbeddingVectorValueObject(vector()),
       model: new EmbeddingModelValueObject('text-embedding-3-small'),
       createdAt: new DateValueObject(now),
       updatedAt: new DateValueObject(now),
@@ -64,9 +62,7 @@ describe('EmbeddingAggregate', () => {
       chunkId,
       chunkText: new EmbeddingChunkTextValueObject('text'),
       chunkPosition: new EmbeddingChunkPositionValueObject(0),
-      embedding: new VectorValueObject(v, {
-        dimensions: EMBEDDING_VECTOR_DIMENSIONS,
-      }),
+      embedding: new EmbeddingVectorValueObject(v),
       model: new EmbeddingModelValueObject('m'),
       createdAt: new DateValueObject(now),
       updatedAt: new DateValueObject(now),

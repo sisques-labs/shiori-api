@@ -12,7 +12,7 @@ import {
 } from '../../helpers/fixtures';
 import { EmbeddingsModule } from '../../../src/contexts/embeddings/embeddings.module';
 import { EmbeddingBuilder } from '../../../src/contexts/embeddings/domain/builders/embedding.builder';
-import { EMBEDDING_VECTOR_DIMENSIONS } from '../../../src/contexts/embeddings/domain/value-objects/embedding-vector/embedding-vector.value-object';
+import { EMBEDDING_VECTOR_DIMENSIONS } from '../../../src/contexts/embeddings/domain/constants/embedding-vector-dimensions.constant';
 import {
   EMBEDDING_WRITE_REPOSITORY,
   IEmbeddingWriteRepository,

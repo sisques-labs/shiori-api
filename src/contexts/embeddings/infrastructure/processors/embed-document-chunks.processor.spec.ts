@@ -7,7 +7,7 @@ import { IEmbeddingPort } from '@contexts/embeddings/application/ports/embedding
 import { EmbeddingAggregate } from '@contexts/embeddings/domain/aggregates/embedding.aggregate';
 import { EmbeddingBuilder } from '@contexts/embeddings/domain/builders/embedding.builder';
 import { IEmbeddingWriteRepository } from '@contexts/embeddings/domain/repositories/write/embedding-write.repository';
-import { EMBEDDING_VECTOR_DIMENSIONS } from '@contexts/embeddings/domain/value-objects/embedding-vector/embedding-vector.value-object';
+import { EMBEDDING_VECTOR_DIMENSIONS } from '@contexts/embeddings/domain/constants/embedding-vector-dimensions.constant';
 import { KnowledgeBaseContext } from '@core/tenancy/knowledge-base-context.service';
 
 import {

@@ -1,8 +1,4 @@
-import {
-  BaseAggregate,
-  UuidValueObject,
-  VectorValueObject,
-} from '@sisques-labs/nestjs-kit';
+import { BaseAggregate, UuidValueObject } from '@sisques-labs/nestjs-kit';
 
 import { IEmbedding } from '@contexts/embeddings/domain/interfaces/embedding.interface';
 import { IEmbeddingPrimitives } from '@contexts/embeddings/domain/primitives/embedding.primitives';
@@ -10,6 +6,7 @@ import { EmbeddingChunkPositionValueObject } from '@contexts/embeddings/domain/v
 import { EmbeddingChunkTextValueObject } from '@contexts/embeddings/domain/value-objects/embedding-chunk-text/embedding-chunk-text.value-object';
 import { EmbeddingIdValueObject } from '@contexts/embeddings/domain/value-objects/embedding-id/embedding-id.value-object';
 import { EmbeddingModelValueObject } from '@contexts/embeddings/domain/value-objects/embedding-model/embedding-model.value-object';
+import { EmbeddingVectorValueObject } from '@contexts/embeddings/domain/value-objects/embedding-vector/embedding-vector.value-object';
 
 /**
  * No domain events — derived data with a single producer
@@ -25,7 +22,7 @@ export class EmbeddingAggregate extends BaseAggregate {
   private readonly _chunkId: UuidValueObject;
   private readonly _chunkText: EmbeddingChunkTextValueObject;
   private readonly _chunkPosition: EmbeddingChunkPositionValueObject;
-  private readonly _embedding: VectorValueObject;
+  private readonly _embedding: EmbeddingVectorValueObject;
   private readonly _model: EmbeddingModelValueObject;
 
   constructor(props: IEmbedding) {
@@ -79,7 +76,7 @@ export class EmbeddingAggregate extends BaseAggregate {
     return this._chunkPosition;
   }
 
-  get embedding(): VectorValueObject {
+  get embedding(): EmbeddingVectorValueObject {
     return this._embedding;
   }
 
