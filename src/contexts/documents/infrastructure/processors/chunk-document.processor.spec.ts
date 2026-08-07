@@ -5,6 +5,7 @@ import { DateValueObject, UuidValueObject } from '@sisques-labs/nestjs-kit';
 import { DocumentAggregate } from '@contexts/documents/domain/aggregates/document.aggregate';
 import { ChunkBuilder } from '@contexts/documents/domain/builders/chunk.builder';
 import { DocumentStatusEnum } from '@contexts/documents/domain/enums/document-status.enum';
+import { DocumentChunkCountValueObject } from '@contexts/documents/domain/value-objects/document-chunk-count/document-chunk-count.value-object';
 import { DocumentContentValueObject } from '@contexts/documents/domain/value-objects/document-content/document-content.value-object';
 import { DocumentIdValueObject } from '@contexts/documents/domain/value-objects/document-id/document-id.value-object';
 import { DocumentStatusValueObject } from '@contexts/documents/domain/value-objects/document-status/document-status.value-object';
@@ -28,7 +29,7 @@ function buildDocument(): DocumentAggregate {
     content: new DocumentContentValueObject('Some content to chunk'),
     status: new DocumentStatusValueObject(DocumentStatusEnum.PENDING),
     failureReason: null,
-    chunkCount: 0,
+    chunkCount: new DocumentChunkCountValueObject(0),
     createdAt: new DateValueObject(now),
     updatedAt: new DateValueObject(now),
   });
@@ -111,7 +112,7 @@ describe('ChunkDocumentProcessor', () => {
       ];
     const persistedDocument = finalSaveCall[0];
     expect(persistedDocument.status.value).toBe(DocumentStatusEnum.CHUNKED);
-    expect(persistedDocument.chunkCount).toBe(2);
+    expect(persistedDocument.chunkCount.value).toBe(2);
   });
 
   it('marks the document FAILED and re-throws when the chunking strategy throws', async () => {

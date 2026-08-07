@@ -2,6 +2,7 @@ import { DateValueObject, UuidValueObject } from '@sisques-labs/nestjs-kit';
 
 import { DocumentStatusEnum } from '@contexts/documents/domain/enums/document-status.enum';
 import { DocumentInvalidStatusTransitionException } from '@contexts/documents/domain/exceptions/document-invalid-status-transition.exception';
+import { DocumentChunkCountValueObject } from '@contexts/documents/domain/value-objects/document-chunk-count/document-chunk-count.value-object';
 import { DocumentContentValueObject } from '@contexts/documents/domain/value-objects/document-content/document-content.value-object';
 import { DocumentIdValueObject } from '@contexts/documents/domain/value-objects/document-id/document-id.value-object';
 import { DocumentStatusValueObject } from '@contexts/documents/domain/value-objects/document-status/document-status.value-object';
@@ -20,7 +21,7 @@ function buildAggregate(
     content: new DocumentContentValueObject('Some content'),
     status: new DocumentStatusValueObject(status),
     failureReason: null,
-    chunkCount: 0,
+    chunkCount: new DocumentChunkCountValueObject(0),
     createdAt: new DateValueObject(now),
     updatedAt: new DateValueObject(now),
   });
@@ -59,7 +60,7 @@ describe('DocumentAggregate', () => {
     doc.completeChunking(5);
 
     expect(doc.status.value).toBe(DocumentStatusEnum.CHUNKED);
-    expect(doc.chunkCount).toBe(5);
+    expect(doc.chunkCount.value).toBe(5);
     expect(doc.failureReason).toBeNull();
     const events = doc.getUncommittedEvents();
     expect(events[events.length - 1].constructor.name).toBe(
@@ -110,7 +111,7 @@ describe('DocumentAggregate', () => {
       content: new DocumentContentValueObject('old'),
       status: new DocumentStatusValueObject(DocumentStatusEnum.FAILED),
       failureReason: null,
-      chunkCount: 3,
+      chunkCount: new DocumentChunkCountValueObject(3),
       createdAt: new DateValueObject(now),
       updatedAt: new DateValueObject(now),
     });
@@ -119,12 +120,56 @@ describe('DocumentAggregate', () => {
 
     expect(doc.content.value).toBe('new content');
     expect(doc.status.value).toBe(DocumentStatusEnum.PENDING);
-    expect(doc.chunkCount).toBe(0);
+    expect(doc.chunkCount.value).toBe(0);
     expect(doc.failureReason).toBeNull();
     const events = doc.getUncommittedEvents();
     expect(events[events.length - 1].constructor.name).toBe(
       'DocumentUpdatedEvent',
     );
+  });
+
+  it('update() emits DocumentTitleChanged when the title changes', () => {
+    const doc = buildAggregate();
+    doc.update({ title: new DocumentTitleValueObject('New title') });
+
+    const events = doc.getUncommittedEvents();
+    const titleChanged = events.find(
+      (event) => event.constructor.name === 'DocumentTitleChangedEvent',
+    ) as any;
+    expect(titleChanged).toBeDefined();
+    expect(titleChanged.data).toEqual({
+      id: doc.id.value,
+      oldValue: 'Doc',
+      newValue: 'New title',
+    });
+  });
+
+  it('update() does not emit DocumentTitleChanged when the title is unchanged', () => {
+    const doc = buildAggregate();
+    doc.update({ title: new DocumentTitleValueObject('Doc') });
+
+    const events = doc.getUncommittedEvents();
+    expect(
+      events.some(
+        (event) => event.constructor.name === 'DocumentTitleChangedEvent',
+      ),
+    ).toBe(false);
+  });
+
+  it('update() emits DocumentContentChanged when the content changes', () => {
+    const doc = buildAggregate();
+    doc.update({ content: new DocumentContentValueObject('new content') });
+
+    const events = doc.getUncommittedEvents();
+    const contentChanged = events.find(
+      (event) => event.constructor.name === 'DocumentContentChangedEvent',
+    ) as any;
+    expect(contentChanged).toBeDefined();
+    expect(contentChanged.data).toEqual({
+      id: doc.id.value,
+      oldValue: 'Some content',
+      newValue: 'new content',
+    });
   });
 
   it('update() while CHUNKING throws', () => {

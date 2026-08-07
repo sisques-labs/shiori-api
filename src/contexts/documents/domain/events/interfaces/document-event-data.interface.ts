@@ -1,5 +1,6 @@
-export interface IDocumentEventData {
-  id: string;
-  knowledgeBaseId: string;
-  status: string;
-}
+import { IDocumentPrimitives } from '@contexts/documents/domain/primitives/document.primitives';
+
+export type IDocumentEventData = Pick<
+  IDocumentPrimitives,
+  'id' | 'knowledgeBaseId' | 'status'
+>;

@@ -6,6 +6,7 @@ import { DocumentAggregate } from '@contexts/documents/domain/aggregates/documen
 import { DocumentStatusEnum } from '@contexts/documents/domain/enums/document-status.enum';
 import { DocumentContentTooLargeException } from '@contexts/documents/domain/exceptions/document-content-too-large.exception';
 import { DocumentInvalidStatusTransitionException } from '@contexts/documents/domain/exceptions/document-invalid-status-transition.exception';
+import { DocumentChunkCountValueObject } from '@contexts/documents/domain/value-objects/document-chunk-count/document-chunk-count.value-object';
 import { DocumentContentValueObject } from '@contexts/documents/domain/value-objects/document-content/document-content.value-object';
 import { DocumentIdValueObject } from '@contexts/documents/domain/value-objects/document-id/document-id.value-object';
 import { DocumentStatusValueObject } from '@contexts/documents/domain/value-objects/document-status/document-status.value-object';
@@ -13,17 +14,21 @@ import { DocumentTitleValueObject } from '@contexts/documents/domain/value-objec
 import { IDocumentWriteRepository } from '@contexts/documents/domain/repositories/write/document-write.repository';
 import { IChunkWriteRepository } from '@contexts/documents/domain/repositories/write/chunk-write.repository';
 import { AssertDocumentExistsService } from '@contexts/documents/application/services/write/assert-document-exists/assert-document-exists.service';
+import { AssertDocumentContentNotTooLargeService } from '@contexts/documents/application/services/write/assert-document-content-not-too-large/assert-document-content-not-too-large.service';
 import { IDocumentProcessingQueuePort } from '@contexts/documents/application/ports/document-processing-queue.port';
 
 import { UpdateDocumentCommand } from './update-document.command';
 import { UpdateDocumentCommandHandler } from './update-document.handler';
 
-function buildConfigService(maxContentLength = 500000): ConfigService {
-  return {
+function buildAssertContentNotTooLarge(
+  maxContentLength = 500000,
+): AssertDocumentContentNotTooLargeService {
+  const configService = {
     getOrThrow: jest
       .fn()
       .mockReturnValue({ maxContentLength, maxChunks: 2000 }),
   } as unknown as ConfigService;
+  return new AssertDocumentContentNotTooLargeService(configService);
 }
 
 function buildDocument(
@@ -37,7 +42,7 @@ function buildDocument(
     content: new DocumentContentValueObject('Original content'),
     status: new DocumentStatusValueObject(status),
     failureReason: null,
-    chunkCount: 0,
+    chunkCount: new DocumentChunkCountValueObject(0),
     createdAt: new DateValueObject(now),
     updatedAt: new DateValueObject(now),
   });
@@ -77,7 +82,7 @@ describe('UpdateDocumentCommandHandler', () => {
       chunkWriteRepository,
       assertExists,
       processingQueue,
-      buildConfigService(),
+      buildAssertContentNotTooLarge(),
       eventBus,
     );
   });
@@ -121,7 +126,7 @@ describe('UpdateDocumentCommandHandler', () => {
       chunkWriteRepository,
       assertExists,
       processingQueue,
-      buildConfigService(10),
+      buildAssertContentNotTooLarge(10),
       eventBus,
     );
 

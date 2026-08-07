@@ -9,6 +9,7 @@ import {
 import { DocumentAggregate } from '@contexts/documents/domain/aggregates/document.aggregate';
 import { DocumentStatusEnum } from '@contexts/documents/domain/enums/document-status.enum';
 import { DocumentViewModel } from '@contexts/documents/domain/view-models/document.view-model';
+import { DocumentChunkCountValueObject } from '@contexts/documents/domain/value-objects/document-chunk-count/document-chunk-count.value-object';
 import { DocumentContentValueObject } from '@contexts/documents/domain/value-objects/document-content/document-content.value-object';
 import { DocumentFailureReasonValueObject } from '@contexts/documents/domain/value-objects/document-failure-reason/document-failure-reason.value-object';
 import { DocumentIdValueObject } from '@contexts/documents/domain/value-objects/document-id/document-id.value-object';
@@ -69,7 +70,7 @@ export class DocumentBuilder extends BaseBuilder<
         this._failureReason != null
           ? new DocumentFailureReasonValueObject(this._failureReason)
           : null,
-      chunkCount: this._chunkCount,
+      chunkCount: new DocumentChunkCountValueObject(this._chunkCount),
       createdAt: new DateValueObject(this._createdAt),
       updatedAt: new DateValueObject(this._updatedAt),
     });

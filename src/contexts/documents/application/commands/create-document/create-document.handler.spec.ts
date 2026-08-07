@@ -8,16 +8,20 @@ import { DocumentStatusEnum } from '@contexts/documents/domain/enums/document-st
 import { DocumentContentTooLargeException } from '@contexts/documents/domain/exceptions/document-content-too-large.exception';
 import { IDocumentWriteRepository } from '@contexts/documents/domain/repositories/write/document-write.repository';
 import { IDocumentProcessingQueuePort } from '@contexts/documents/application/ports/document-processing-queue.port';
+import { AssertDocumentContentNotTooLargeService } from '@contexts/documents/application/services/write/assert-document-content-not-too-large/assert-document-content-not-too-large.service';
 
 import { CreateDocumentCommand } from './create-document.command';
 import { CreateDocumentCommandHandler } from './create-document.handler';
 
-function buildConfigService(maxContentLength = 500000): ConfigService {
-  return {
+function buildAssertContentNotTooLarge(
+  maxContentLength = 500000,
+): AssertDocumentContentNotTooLargeService {
+  const configService = {
     getOrThrow: jest
       .fn()
       .mockReturnValue({ maxContentLength, maxChunks: 2000 }),
   } as unknown as ConfigService;
+  return new AssertDocumentContentNotTooLargeService(configService);
 }
 
 describe('CreateDocumentCommandHandler', () => {
@@ -42,7 +46,7 @@ describe('CreateDocumentCommandHandler', () => {
       writeRepository,
       new DocumentBuilder(),
       processingQueue,
-      buildConfigService(),
+      buildAssertContentNotTooLarge(),
       eventBus,
     );
   });
@@ -80,7 +84,7 @@ describe('CreateDocumentCommandHandler', () => {
       writeRepository,
       new DocumentBuilder(),
       processingQueue,
-      buildConfigService(10),
+      buildAssertContentNotTooLarge(10),
       eventBus,
     );
 

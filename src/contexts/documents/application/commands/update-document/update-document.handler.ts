@@ -1,10 +1,8 @@
 import { Inject, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { CommandHandler, EventBus, ICommandHandler } from '@nestjs/cqrs';
 import { BaseCommandHandler } from '@sisques-labs/nestjs-kit';
 
 import { DocumentAggregate } from '@contexts/documents/domain/aggregates/document.aggregate';
-import { DocumentContentTooLargeException } from '@contexts/documents/domain/exceptions/document-content-too-large.exception';
 import {
   DOCUMENT_WRITE_REPOSITORY,
   IDocumentWriteRepository,
@@ -14,11 +12,11 @@ import {
   IChunkWriteRepository,
 } from '@contexts/documents/domain/repositories/write/chunk-write.repository';
 import { AssertDocumentExistsService } from '@contexts/documents/application/services/write/assert-document-exists/assert-document-exists.service';
+import { AssertDocumentContentNotTooLargeService } from '@contexts/documents/application/services/write/assert-document-content-not-too-large/assert-document-content-not-too-large.service';
 import {
   DOCUMENT_PROCESSING_QUEUE_PORT,
   IDocumentProcessingQueuePort,
 } from '@contexts/documents/application/ports/document-processing-queue.port';
-import { DocumentsConfig } from '@contexts/documents/infrastructure/config/documents.config';
 
 import { UpdateDocumentCommand } from './update-document.command';
 
@@ -28,7 +26,6 @@ export class UpdateDocumentCommandHandler
   implements ICommandHandler<UpdateDocumentCommand, void>
 {
   private readonly logger = new Logger(UpdateDocumentCommandHandler.name);
-  private readonly maxContentLength: number;
 
   constructor(
     @Inject(DOCUMENT_WRITE_REPOSITORY)
@@ -38,23 +35,15 @@ export class UpdateDocumentCommandHandler
     private readonly assertExists: AssertDocumentExistsService,
     @Inject(DOCUMENT_PROCESSING_QUEUE_PORT)
     private readonly processingQueue: IDocumentProcessingQueuePort,
-    configService: ConfigService,
+    private readonly assertContentNotTooLarge: AssertDocumentContentNotTooLargeService,
     eventBus: EventBus,
   ) {
     super(eventBus);
-    this.maxContentLength =
-      configService.getOrThrow<DocumentsConfig>('documents').maxContentLength;
   }
 
   async execute(command: UpdateDocumentCommand): Promise<void> {
-    if (
-      command.content != null &&
-      command.content.value.length > this.maxContentLength
-    ) {
-      throw new DocumentContentTooLargeException(
-        command.content.value.length,
-        this.maxContentLength,
-      );
+    if (command.content != null) {
+      await this.assertContentNotTooLarge.execute(command.content.value);
     }
 
     const document = await this.assertExists.execute(command.id);

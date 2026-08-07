@@ -1,15 +1,23 @@
-import { BaseAggregate, UuidValueObject } from '@sisques-labs/nestjs-kit';
+import {
+  BaseAggregate,
+  IFieldChangedEventData,
+  UuidValueObject,
+} from '@sisques-labs/nestjs-kit';
 
 import { DocumentChunkedEvent } from '@contexts/documents/domain/events/document-chunked/document-chunked.event';
 import { DocumentChunkingFailedEvent } from '@contexts/documents/domain/events/document-chunking-failed/document-chunking-failed.event';
 import { DocumentChunkingStartedEvent } from '@contexts/documents/domain/events/document-chunking-started/document-chunking-started.event';
 import { DocumentCreatedEvent } from '@contexts/documents/domain/events/document-created/document-created.event';
 import { DocumentDeletedEvent } from '@contexts/documents/domain/events/document-deleted/document-deleted.event';
+import { DocumentContentChangedEvent } from '@contexts/documents/domain/events/field-changed/document-content-changed/document-content-changed.event';
+import { DocumentTitleChangedEvent } from '@contexts/documents/domain/events/field-changed/document-title-changed/document-title-changed.event';
 import { DocumentUpdatedEvent } from '@contexts/documents/domain/events/document-updated/document-updated.event';
 import { DocumentStatusEnum } from '@contexts/documents/domain/enums/document-status.enum';
 import { DocumentInvalidStatusTransitionException } from '@contexts/documents/domain/exceptions/document-invalid-status-transition.exception';
+import { IDocumentEventData } from '@contexts/documents/domain/events/interfaces/document-event-data.interface';
 import { IDocument } from '@contexts/documents/domain/interfaces/document.interface';
 import { IDocumentPrimitives } from '@contexts/documents/domain/primitives/document.primitives';
+import { DocumentChunkCountValueObject } from '@contexts/documents/domain/value-objects/document-chunk-count/document-chunk-count.value-object';
 import { DocumentContentValueObject } from '@contexts/documents/domain/value-objects/document-content/document-content.value-object';
 import { DocumentFailureReasonValueObject } from '@contexts/documents/domain/value-objects/document-failure-reason/document-failure-reason.value-object';
 import { DocumentIdValueObject } from '@contexts/documents/domain/value-objects/document-id/document-id.value-object';
@@ -23,9 +31,9 @@ export class DocumentAggregate extends BaseAggregate {
   private _content: DocumentContentValueObject;
   private _status: DocumentStatusValueObject;
   private _failureReason: DocumentFailureReasonValueObject | null;
-  private _chunkCount: number;
+  private _chunkCount: DocumentChunkCountValueObject;
 
-  constructor(props: IDocument & { chunkCount: number }) {
+  constructor(props: IDocument) {
     super(props.createdAt, props.updatedAt);
     this._id = props.id;
     this._knowledgeBaseId = props.knowledgeBaseId;
@@ -45,10 +53,7 @@ export class DocumentAggregate extends BaseAggregate {
     );
   }
 
-  public update(props: {
-    title?: DocumentTitleValueObject;
-    content?: DocumentContentValueObject;
-  }): void {
+  public update(props: Partial<Pick<IDocument, 'title' | 'content'>>): void {
     if (this._status.value === DocumentStatusEnum.CHUNKING) {
       throw new DocumentInvalidStatusTransitionException(
         this._status.value,
@@ -56,22 +61,49 @@ export class DocumentAggregate extends BaseAggregate {
       );
     }
 
-    if (props.title !== undefined) this._title = props.title;
-    if (props.content !== undefined) {
-      this._content = props.content;
-      // Content changed — the existing chunks (if any) are stale. Caller
-      // (the command handler) is responsible for deleting them and
-      // re-enqueuing; this aggregate only reflects the resulting state.
-      this._status = new DocumentStatusValueObject(DocumentStatusEnum.PENDING);
-      this._chunkCount = 0;
-      this._failureReason = null;
-    }
-    this.touch();
+    if (props.title !== undefined) this.changeTitle(props.title);
+    if (props.content !== undefined) this.changeContent(props.content);
 
     this.apply(
       new DocumentUpdatedEvent(
         this.metadata(DocumentUpdatedEvent.name),
         this.toEventData(),
+      ),
+    );
+  }
+
+  private changeTitle(newTitle: DocumentTitleValueObject): void {
+    if (this._title.equals(newTitle)) return;
+
+    const oldValue = this._title.value;
+    this._title = newTitle;
+    this.touch();
+
+    this.apply(
+      new DocumentTitleChangedEvent(
+        this.metadata(DocumentTitleChangedEvent.name),
+        this.fieldChangedData(oldValue, newTitle.value),
+      ),
+    );
+  }
+
+  private changeContent(newContent: DocumentContentValueObject): void {
+    if (this._content.equals(newContent)) return;
+
+    const oldValue = this._content.value;
+    this._content = newContent;
+    // Content changed — the existing chunks (if any) are stale. Caller
+    // (the command handler) is responsible for deleting them and
+    // re-enqueuing; this aggregate only reflects the resulting state.
+    this._status = new DocumentStatusValueObject(DocumentStatusEnum.PENDING);
+    this._chunkCount = new DocumentChunkCountValueObject(0);
+    this._failureReason = null;
+    this.touch();
+
+    this.apply(
+      new DocumentContentChangedEvent(
+        this.metadata(DocumentContentChangedEvent.name),
+        this.fieldChangedData(oldValue, newContent.value),
       ),
     );
   }
@@ -107,7 +139,7 @@ export class DocumentAggregate extends BaseAggregate {
       DocumentStatusEnum.CHUNKED,
     );
     this._status = new DocumentStatusValueObject(DocumentStatusEnum.CHUNKED);
-    this._chunkCount = chunkCount;
+    this._chunkCount = new DocumentChunkCountValueObject(chunkCount);
     this._failureReason = null;
     this.touch();
 
@@ -158,12 +190,16 @@ export class DocumentAggregate extends BaseAggregate {
     };
   }
 
-  private toEventData() {
-    return {
-      id: this._id.value,
-      knowledgeBaseId: this._knowledgeBaseId.value,
-      status: this._status.value,
-    };
+  private toEventData(): IDocumentEventData {
+    const { id, knowledgeBaseId, status } = this.toPrimitives();
+    return { id, knowledgeBaseId, status };
+  }
+
+  private fieldChangedData(
+    oldValue: string,
+    newValue: string,
+  ): IFieldChangedEventData<string> {
+    return { id: this._id.value, oldValue, newValue };
   }
 
   public toPrimitives(): IDocumentPrimitives {
@@ -174,7 +210,7 @@ export class DocumentAggregate extends BaseAggregate {
       content: this._content.value,
       status: this._status.value,
       failureReason: this._failureReason?.value ?? null,
-      chunkCount: this._chunkCount,
+      chunkCount: this._chunkCount.value,
       createdAt: this.createdAt.value,
       updatedAt: this.updatedAt.value,
     };
@@ -204,7 +240,7 @@ export class DocumentAggregate extends BaseAggregate {
     return this._failureReason;
   }
 
-  get chunkCount(): number {
+  get chunkCount(): DocumentChunkCountValueObject {
     return this._chunkCount;
   }
 }
