@@ -38,6 +38,7 @@ describe('ChunkFindByDocumentIdQueryHandler', () => {
       .withPosition(position)
       .withText(text)
       .withCreatedAt(new Date())
+      .withUpdatedAt(new Date())
       .build();
   }
 
