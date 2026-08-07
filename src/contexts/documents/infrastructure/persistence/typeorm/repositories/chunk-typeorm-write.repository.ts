@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import {
+  BaseDatabaseRepository,
+  Criteria,
+  PaginatedResult,
+  SortDirection,
+} from '@sisques-labs/nestjs-kit';
+import { applyCriteriaToQueryBuilder } from '@sisques-labs/nestjs-kit/typeorm';
 import { Repository } from 'typeorm';
 
 import { ChunkAggregate } from '@contexts/documents/domain/aggregates/chunk.aggregate';
@@ -9,8 +16,13 @@ import { createTenantRepository } from '@core/tenancy/create-tenant-repository.f
 import { ChunkTypeOrmEntity } from '../entities/chunk.entity';
 import { ChunkTypeOrmMapper } from '../mappers/chunk-typeorm.mapper';
 
+const ALIAS = 'chunk';
+
 @Injectable()
-export class ChunkTypeOrmWriteRepository implements IChunkWriteRepository {
+export class ChunkTypeOrmWriteRepository
+  extends BaseDatabaseRepository
+  implements IChunkWriteRepository
+{
   private readonly repository: Repository<ChunkTypeOrmEntity>;
 
   constructor(
@@ -19,6 +31,7 @@ export class ChunkTypeOrmWriteRepository implements IChunkWriteRepository {
     private readonly rawRepository: Repository<ChunkTypeOrmEntity>,
     private readonly knowledgeBaseContext: KnowledgeBaseContext,
   ) {
+    super();
     this.repository = createTenantRepository(
       rawRepository,
       knowledgeBaseContext,
@@ -49,6 +62,46 @@ export class ChunkTypeOrmWriteRepository implements IChunkWriteRepository {
       where: { documentId },
       order: { position: 'ASC' },
     });
-    return entities.map((e) => this.mapper.toDomain(e));
+    return entities.map((entity) => this.mapper.toDomain(entity));
+  }
+
+  async findById(id: string): Promise<ChunkAggregate | null> {
+    const entity = await this.repository.findOne({ where: { id } });
+    return entity ? this.mapper.toDomain(entity) : null;
+  }
+
+  async findByCriteria(
+    criteria: Criteria,
+  ): Promise<PaginatedResult<ChunkAggregate>> {
+    const { page, limit, skip } = await this.calculatePagination(criteria);
+
+    // createQueryBuilder bypasses the tenant-repo proxy, so the scoping
+    // filter has to be applied explicitly here (mirrors the document repos).
+    const queryBuilder = this.repository
+      .createQueryBuilder(ALIAS)
+      .where(`${ALIAS}.knowledge_base_id = :knowledgeBaseId`, {
+        knowledgeBaseId: this.knowledgeBaseContext.require(),
+      })
+      .skip(skip)
+      .take(limit);
+
+    applyCriteriaToQueryBuilder(queryBuilder, criteria, {
+      alias: ALIAS,
+      defaultSort: { field: 'createdAt', direction: SortDirection.DESC },
+    });
+
+    const [entities, total] = await queryBuilder.getManyAndCount();
+    const items = entities.map((entity) => this.mapper.toDomain(entity));
+    return new PaginatedResult(items, total, page, limit);
+  }
+
+  async save(aggregate: ChunkAggregate): Promise<ChunkAggregate> {
+    const entity = this.mapper.toPersistence(aggregate);
+    const saved = await this.repository.save(entity);
+    return this.mapper.toDomain(saved);
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.repository.delete(id);
   }
 }

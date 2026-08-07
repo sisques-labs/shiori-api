@@ -57,6 +57,10 @@ describe('ChunkDocumentProcessor', () => {
       saveMany: jest.fn().mockResolvedValue(undefined),
       deleteByDocumentId: jest.fn(),
       findByDocumentId: jest.fn(),
+      findById: jest.fn(),
+      findByCriteria: jest.fn(),
+      save: jest.fn(),
+      delete: jest.fn(),
     };
     chunkingStrategy = {
       chunk: jest.fn(),

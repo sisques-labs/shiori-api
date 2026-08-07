@@ -48,7 +48,7 @@ export class DocumentTypeOrmReadRepository
   ): Promise<PaginatedResult<DocumentViewModel>> {
     const { page, limit, skip } = await this.calculatePagination(criteria);
 
-    const qb = this.repository
+    const queryBuilder = this.repository
       .createQueryBuilder(ALIAS)
       .where(`${ALIAS}.knowledge_base_id = :knowledgeBaseId`, {
         knowledgeBaseId: this.knowledgeBaseContext.require(),
@@ -56,12 +56,12 @@ export class DocumentTypeOrmReadRepository
       .skip(skip)
       .take(limit);
 
-    applyCriteriaToQueryBuilder(qb, criteria, {
+    applyCriteriaToQueryBuilder(queryBuilder, criteria, {
       alias: ALIAS,
       defaultSort: { field: 'createdAt', direction: SortDirection.DESC },
     });
 
-    const [entities, total] = await qb.getManyAndCount();
+    const [entities, total] = await queryBuilder.getManyAndCount();
     const items = entities.map((e) => this.mapper.toViewModel(e));
     return new PaginatedResult(items, total, page, limit);
   }

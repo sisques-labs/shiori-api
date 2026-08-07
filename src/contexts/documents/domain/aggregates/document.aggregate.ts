@@ -13,9 +13,10 @@ import { DocumentContentChangedEvent } from '@contexts/documents/domain/events/f
 import { DocumentTitleChangedEvent } from '@contexts/documents/domain/events/field-changed/document-title-changed/document-title-changed.event';
 import { DocumentUpdatedEvent } from '@contexts/documents/domain/events/document-updated/document-updated.event';
 import { DocumentStatusEnum } from '@contexts/documents/domain/enums/document-status.enum';
-import { DocumentInvalidStatusTransitionException } from '@contexts/documents/domain/exceptions/document-invalid-status-transition.exception';
 import { IDocument } from '@contexts/documents/domain/interfaces/document.interface';
 import { IDocumentPrimitives } from '@contexts/documents/domain/primitives/document.primitives';
+import { AssertDocumentNotChunkingService } from '@contexts/documents/domain/services/assert-document-not-chunking/assert-document-not-chunking.service';
+import { AssertDocumentStatusTransitionService } from '@contexts/documents/domain/services/assert-document-status-transition/assert-document-status-transition.service';
 import { DocumentChunkCountValueObject } from '@contexts/documents/domain/value-objects/document-chunk-count/document-chunk-count.value-object';
 import { DocumentContentValueObject } from '@contexts/documents/domain/value-objects/document-content/document-content.value-object';
 import { DocumentFailureReasonValueObject } from '@contexts/documents/domain/value-objects/document-failure-reason/document-failure-reason.value-object';
@@ -31,6 +32,9 @@ export class DocumentAggregate extends BaseAggregate {
   private _status: DocumentStatusValueObject;
   private _failureReason: DocumentFailureReasonValueObject | null;
   private _chunkCount: DocumentChunkCountValueObject;
+  private readonly assertNotChunking = new AssertDocumentNotChunkingService();
+  private readonly assertStatusTransition =
+    new AssertDocumentStatusTransitionService();
 
   constructor(props: IDocument) {
     super(props.createdAt, props.updatedAt);
@@ -53,12 +57,7 @@ export class DocumentAggregate extends BaseAggregate {
   }
 
   public update(props: Partial<Pick<IDocument, 'title' | 'content'>>): void {
-    if (this._status.value === DocumentStatusEnum.CHUNKING) {
-      throw new DocumentInvalidStatusTransitionException(
-        this._status.value,
-        'updated-while-chunking',
-      );
-    }
+    this.assertNotChunking.execute(this._status.value);
 
     if (props.title !== undefined) this.changeTitle(props.title);
     if (props.content !== undefined) this.changeContent(props.content);
@@ -117,7 +116,8 @@ export class DocumentAggregate extends BaseAggregate {
   }
 
   public startChunking(): void {
-    this.assertTransition(
+    this.assertStatusTransition.execute(
+      this._status.value,
       DocumentStatusEnum.PENDING,
       DocumentStatusEnum.CHUNKING,
     );
@@ -133,7 +133,8 @@ export class DocumentAggregate extends BaseAggregate {
   }
 
   public completeChunking(chunkCount: number): void {
-    this.assertTransition(
+    this.assertStatusTransition.execute(
+      this._status.value,
       DocumentStatusEnum.CHUNKING,
       DocumentStatusEnum.CHUNKED,
     );
@@ -151,7 +152,8 @@ export class DocumentAggregate extends BaseAggregate {
   }
 
   public failChunking(reason: string): void {
-    this.assertTransition(
+    this.assertStatusTransition.execute(
+      this._status.value,
       DocumentStatusEnum.CHUNKING,
       DocumentStatusEnum.FAILED,
     );
@@ -165,18 +167,6 @@ export class DocumentAggregate extends BaseAggregate {
         this.toPrimitives(),
       ),
     );
-  }
-
-  private assertTransition(
-    expectedFrom: DocumentStatusEnum,
-    to: DocumentStatusEnum,
-  ): void {
-    if (this._status.value !== expectedFrom) {
-      throw new DocumentInvalidStatusTransitionException(
-        this._status.value,
-        to,
-      );
-    }
   }
 
   private metadata(eventType: string) {

@@ -45,7 +45,7 @@ export class DocumentTypeOrmWriteRepository
 
     // createQueryBuilder bypasses the tenant-repo proxy, so the scoping
     // filter has to be applied explicitly here (mirrors the read repository).
-    const qb = this.repository
+    const queryBuilder = this.repository
       .createQueryBuilder(ALIAS)
       .where(`${ALIAS}.knowledge_base_id = :knowledgeBaseId`, {
         knowledgeBaseId: this.knowledgeBaseContext.require(),
@@ -53,12 +53,12 @@ export class DocumentTypeOrmWriteRepository
       .skip(skip)
       .take(limit);
 
-    applyCriteriaToQueryBuilder(qb, criteria, {
+    applyCriteriaToQueryBuilder(queryBuilder, criteria, {
       alias: ALIAS,
       defaultSort: { field: 'createdAt', direction: SortDirection.DESC },
     });
 
-    const [entities, total] = await qb.getManyAndCount();
+    const [entities, total] = await queryBuilder.getManyAndCount();
     const items = entities.map((entity) => this.mapper.toDomain(entity));
     return new PaginatedResult(items, total, page, limit);
   }
