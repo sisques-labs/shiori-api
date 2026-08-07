@@ -19,6 +19,7 @@ describe('ChunkAggregate', () => {
       position: new ChunkPositionValueObject(2),
       text: new ChunkTextValueObject('some chunk text'),
       createdAt: new DateValueObject(now),
+      updatedAt: new DateValueObject(now),
     });
 
     expect(chunk.documentId.value).toBe(documentId.value);
@@ -26,8 +27,8 @@ describe('ChunkAggregate', () => {
     expect(chunk.position.value).toBe(2);
     expect(chunk.text.value).toBe('some chunk text');
     expect(chunk.createdAt.value).toBe(now);
-    // ChunkAggregate is a plain class, not a BaseAggregate — no event API.
-    expect((chunk as unknown as Record<string, unknown>).apply).toBeUndefined();
+    // ChunkAggregate extends BaseAggregate but emits no domain events.
+    expect(chunk.getUncommittedEvents()).toEqual([]);
   });
 
   it('toPrimitives() returns the flat shape', () => {
@@ -43,6 +44,7 @@ describe('ChunkAggregate', () => {
       position: new ChunkPositionValueObject(0),
       text: new ChunkTextValueObject('text'),
       createdAt: new DateValueObject(now),
+      updatedAt: new DateValueObject(now),
     });
 
     expect(chunk.toPrimitives()).toEqual({
@@ -52,6 +54,7 @@ describe('ChunkAggregate', () => {
       position: 0,
       text: 'text',
       createdAt: now,
+      updatedAt: now,
     });
   });
 });

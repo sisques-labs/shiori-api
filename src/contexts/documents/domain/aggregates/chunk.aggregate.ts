@@ -3,28 +3,29 @@ import { IChunkPrimitives } from '@contexts/documents/domain/primitives/chunk.pr
 import { ChunkIdValueObject } from '@contexts/documents/domain/value-objects/chunk-id/chunk-id.value-object';
 import { ChunkPositionValueObject } from '@contexts/documents/domain/value-objects/chunk-position/chunk-position.value-object';
 import { ChunkTextValueObject } from '@contexts/documents/domain/value-objects/chunk-text/chunk-text.value-object';
-import { DateValueObject, UuidValueObject } from '@sisques-labs/nestjs-kit';
+import { BaseAggregate, UuidValueObject } from '@sisques-labs/nestjs-kit';
 
 /**
- * Hydration-only, no domain events — chunks are derived data with exactly
- * one producer (ChunkDocumentProcessor), never independently created,
- * updated, or deleted from a transport entry point.
+ * No domain events — chunks are derived data with exactly one producer
+ * (ChunkDocumentProcessor), never independently created, updated, or
+ * deleted from a transport entry point. Extends `BaseAggregate` for
+ * consistency with the rest of the codebase; `updatedAt` is set once at
+ * creation time and never touched again.
  */
-export class ChunkAggregate {
+export class ChunkAggregate extends BaseAggregate {
   private readonly _id: ChunkIdValueObject;
   private readonly _documentId: UuidValueObject;
   private readonly _knowledgeBaseId: UuidValueObject;
   private readonly _position: ChunkPositionValueObject;
   private readonly _text: ChunkTextValueObject;
-  private readonly _createdAt: DateValueObject;
 
   constructor(props: IChunk) {
+    super(props.createdAt, props.updatedAt);
     this._id = props.id;
     this._documentId = props.documentId;
     this._knowledgeBaseId = props.knowledgeBaseId;
     this._position = props.position;
     this._text = props.text;
-    this._createdAt = props.createdAt;
   }
 
   public toPrimitives(): IChunkPrimitives {
@@ -34,7 +35,8 @@ export class ChunkAggregate {
       knowledgeBaseId: this._knowledgeBaseId.value,
       position: this._position.value,
       text: this._text.value,
-      createdAt: this._createdAt.value,
+      createdAt: this.createdAt.value,
+      updatedAt: this.updatedAt.value,
     };
   }
 
@@ -56,9 +58,5 @@ export class ChunkAggregate {
 
   get text(): ChunkTextValueObject {
     return this._text;
-  }
-
-  get createdAt(): DateValueObject {
-    return this._createdAt;
   }
 }

@@ -12,11 +12,6 @@ import { ChunkIdValueObject } from '@contexts/documents/domain/value-objects/chu
 import { ChunkPositionValueObject } from '@contexts/documents/domain/value-objects/chunk-position/chunk-position.value-object';
 import { ChunkTextValueObject } from '@contexts/documents/domain/value-objects/chunk-text/chunk-text.value-object';
 
-/**
- * ChunkAggregate has no `updatedAt` (hydration-only, never independently
- * updated), so `validate()` is overridden rather than delegating to
- * `super.validate()` — the base implementation also requires `_updatedAt`.
- */
 @Injectable()
 export class ChunkBuilder extends BaseBuilder<ChunkAggregate, ChunkViewModel> {
   private _documentId!: string;
@@ -45,10 +40,7 @@ export class ChunkBuilder extends BaseBuilder<ChunkAggregate, ChunkViewModel> {
   }
 
   public override validate(): void {
-    if (!this._id) throw new FieldIsRequiredException('id');
-    if (this._createdAt == null) {
-      throw new FieldIsRequiredException('createdAt');
-    }
+    super.validate();
     if (!this._documentId) throw new FieldIsRequiredException('documentId');
     if (!this._knowledgeBaseId)
       throw new FieldIsRequiredException('knowledgeBaseId');
@@ -64,6 +56,7 @@ export class ChunkBuilder extends BaseBuilder<ChunkAggregate, ChunkViewModel> {
       position: new ChunkPositionValueObject(this._position),
       text: new ChunkTextValueObject(this._text),
       createdAt: new DateValueObject(this._createdAt),
+      updatedAt: new DateValueObject(this._updatedAt),
     });
   }
 
@@ -76,6 +69,7 @@ export class ChunkBuilder extends BaseBuilder<ChunkAggregate, ChunkViewModel> {
       position: this._position,
       text: this._text,
       createdAt: this._createdAt,
+      updatedAt: this._updatedAt,
     });
   }
 }

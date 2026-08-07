@@ -63,6 +63,7 @@ export class ChunkDocumentProcessor extends WorkerHost {
         const chunks = this.chunkingStrategy.chunk(document.content.value);
         await job.updateProgress(50);
 
+        const now = new Date();
         const chunkAggregates = chunks.map((chunk) =>
           this.chunkBuilder
             .withId(UuidValueObject.generate().value)
@@ -70,7 +71,8 @@ export class ChunkDocumentProcessor extends WorkerHost {
             .withKnowledgeBaseId(document.knowledgeBaseId.value)
             .withPosition(chunk.position)
             .withText(chunk.text)
-            .withCreatedAt(new Date())
+            .withCreatedAt(now)
+            .withUpdatedAt(now)
             .build(),
         );
 

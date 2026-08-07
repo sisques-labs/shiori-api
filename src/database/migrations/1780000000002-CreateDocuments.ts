@@ -32,6 +32,7 @@ export class CreateDocuments1780000000002 implements MigrationInterface {
         "position" integer NOT NULL,
         "text" text NOT NULL,
         "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+        "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
         CONSTRAINT "PK_chunks_id" PRIMARY KEY ("id"),
         CONSTRAINT "FK_chunks_document_id" FOREIGN KEY ("document_id")
           REFERENCES "documents" ("id") ON DELETE CASCADE
