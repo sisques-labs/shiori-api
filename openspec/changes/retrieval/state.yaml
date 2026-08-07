@@ -1,0 +1,16 @@
+change: retrieval
+status: apply
+created: 2026-08-06
+artifact_store: hybrid
+context: retrieval
+phases:
+  explore: done
+  proposal: done
+  spec: done
+  design: done
+  tasks: done
+  apply: in_progress
+  verify: pending
+  archive: pending
+next_recommended:
+  - sdd-apply
