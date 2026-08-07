@@ -18,6 +18,10 @@ import { KnowledgeBaseContext } from './knowledge-base-context.service';
  * ESLint rule (`boundaries/include` only covers `src/contexts/**`), same
  * precedent as `core/filters/base-exception.filter.ts` registering
  * `resolveKnowledgeBasesExceptionStatus`.
+ *
+ * TODO: reformat to group providers/exports into named const arrays,
+ * matching `knowledge-bases.module.ts`'s style, instead of inlining them
+ * directly here.
  */
 @Global()
 @Module({
