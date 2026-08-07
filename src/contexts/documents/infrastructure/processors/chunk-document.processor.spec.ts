@@ -84,7 +84,8 @@ describe('ChunkDocumentProcessor', () => {
         documentId: document.id.value,
         knowledgeBaseId: document.knowledgeBaseId.value,
       },
-    } as Job<ChunkDocumentJobData>;
+      updateProgress: jest.fn().mockResolvedValue(undefined),
+    } as unknown as Job<ChunkDocumentJobData>;
   }
 
   it('chunks the document, saves the chunks, and persists the CHUNKED status', async () => {

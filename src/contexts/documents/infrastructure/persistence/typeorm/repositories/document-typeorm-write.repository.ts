@@ -4,7 +4,9 @@ import {
   BaseDatabaseRepository,
   Criteria,
   PaginatedResult,
+  SortDirection,
 } from '@sisques-labs/nestjs-kit';
+import { applyCriteriaToQueryBuilder } from '@sisques-labs/nestjs-kit/typeorm';
 import { Repository } from 'typeorm';
 
 import { DocumentAggregate } from '@contexts/documents/domain/aggregates/document.aggregate';
@@ -13,6 +15,8 @@ import { KnowledgeBaseContext } from '@core/tenancy/knowledge-base-context.servi
 import { createTenantRepository } from '@core/tenancy/create-tenant-repository.factory';
 import { DocumentTypeOrmEntity } from '../entities/document.entity';
 import { DocumentTypeOrmMapper } from '../mappers/document-typeorm.mapper';
+
+const ALIAS = 'document';
 
 @Injectable()
 export class DocumentTypeOrmWriteRepository
@@ -25,7 +29,7 @@ export class DocumentTypeOrmWriteRepository
     private readonly mapper: DocumentTypeOrmMapper,
     @InjectRepository(DocumentTypeOrmEntity)
     rawRepository: Repository<DocumentTypeOrmEntity>,
-    knowledgeBaseContext: KnowledgeBaseContext,
+    private readonly knowledgeBaseContext: KnowledgeBaseContext,
   ) {
     super();
     this.repository = createTenantRepository(
@@ -35,9 +39,28 @@ export class DocumentTypeOrmWriteRepository
   }
 
   async findByCriteria(
-    _criteria: Criteria,
+    criteria: Criteria,
   ): Promise<PaginatedResult<DocumentAggregate>> {
-    throw new Error('Method not implemented.');
+    const { page, limit, skip } = await this.calculatePagination(criteria);
+
+    // createQueryBuilder bypasses the tenant-repo proxy, so the scoping
+    // filter has to be applied explicitly here (mirrors the read repository).
+    const qb = this.repository
+      .createQueryBuilder(ALIAS)
+      .where(`${ALIAS}.knowledge_base_id = :knowledgeBaseId`, {
+        knowledgeBaseId: this.knowledgeBaseContext.require(),
+      })
+      .skip(skip)
+      .take(limit);
+
+    applyCriteriaToQueryBuilder(qb, criteria, {
+      alias: ALIAS,
+      defaultSort: { field: 'createdAt', direction: SortDirection.DESC },
+    });
+
+    const [entities, total] = await qb.getManyAndCount();
+    const items = entities.map((entity) => this.mapper.toDomain(entity));
+    return new PaginatedResult(items, total, page, limit);
   }
 
   async save(aggregate: DocumentAggregate): Promise<DocumentAggregate> {

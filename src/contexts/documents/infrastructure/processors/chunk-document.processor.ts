@@ -57,9 +57,11 @@ export class ChunkDocumentProcessor extends WorkerHost {
       document.startChunking();
       await this.documentWriteRepository.save(document);
       await this.publishEvents(document);
+      await job.updateProgress(25);
 
       try {
         const chunks = this.chunkingStrategy.chunk(document.content.value);
+        await job.updateProgress(50);
 
         const chunkAggregates = chunks.map((chunk) =>
           this.chunkBuilder
@@ -73,10 +75,12 @@ export class ChunkDocumentProcessor extends WorkerHost {
         );
 
         await this.chunkWriteRepository.saveMany(chunkAggregates);
+        await job.updateProgress(75);
 
         document.completeChunking(chunkAggregates.length);
         await this.documentWriteRepository.save(document);
         await this.publishEvents(document);
+        await job.updateProgress(100);
 
         this.logger.log(
           `Document chunked: ${documentId} (${chunkAggregates.length} chunks)`,

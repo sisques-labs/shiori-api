@@ -14,7 +14,6 @@ import { DocumentTitleChangedEvent } from '@contexts/documents/domain/events/fie
 import { DocumentUpdatedEvent } from '@contexts/documents/domain/events/document-updated/document-updated.event';
 import { DocumentStatusEnum } from '@contexts/documents/domain/enums/document-status.enum';
 import { DocumentInvalidStatusTransitionException } from '@contexts/documents/domain/exceptions/document-invalid-status-transition.exception';
-import { IDocumentEventData } from '@contexts/documents/domain/events/interfaces/document-event-data.interface';
 import { IDocument } from '@contexts/documents/domain/interfaces/document.interface';
 import { IDocumentPrimitives } from '@contexts/documents/domain/primitives/document.primitives';
 import { DocumentChunkCountValueObject } from '@contexts/documents/domain/value-objects/document-chunk-count/document-chunk-count.value-object';
@@ -48,7 +47,7 @@ export class DocumentAggregate extends BaseAggregate {
     this.apply(
       new DocumentCreatedEvent(
         this.metadata(DocumentCreatedEvent.name),
-        this.toEventData(),
+        this.toPrimitives(),
       ),
     );
   }
@@ -67,7 +66,7 @@ export class DocumentAggregate extends BaseAggregate {
     this.apply(
       new DocumentUpdatedEvent(
         this.metadata(DocumentUpdatedEvent.name),
-        this.toEventData(),
+        this.toPrimitives(),
       ),
     );
   }
@@ -112,7 +111,7 @@ export class DocumentAggregate extends BaseAggregate {
     this.apply(
       new DocumentDeletedEvent(
         this.metadata(DocumentDeletedEvent.name),
-        this.toEventData(),
+        this.toPrimitives(),
       ),
     );
   }
@@ -128,7 +127,7 @@ export class DocumentAggregate extends BaseAggregate {
     this.apply(
       new DocumentChunkingStartedEvent(
         this.metadata(DocumentChunkingStartedEvent.name),
-        this.toEventData(),
+        this.toPrimitives(),
       ),
     );
   }
@@ -146,7 +145,7 @@ export class DocumentAggregate extends BaseAggregate {
     this.apply(
       new DocumentChunkedEvent(
         this.metadata(DocumentChunkedEvent.name),
-        this.toEventData(),
+        this.toPrimitives(),
       ),
     );
   }
@@ -163,7 +162,7 @@ export class DocumentAggregate extends BaseAggregate {
     this.apply(
       new DocumentChunkingFailedEvent(
         this.metadata(DocumentChunkingFailedEvent.name),
-        this.toEventData(),
+        this.toPrimitives(),
       ),
     );
   }
@@ -188,11 +187,6 @@ export class DocumentAggregate extends BaseAggregate {
       entityType: DocumentAggregate.name,
       eventType,
     };
-  }
-
-  private toEventData(): IDocumentEventData {
-    const { id, knowledgeBaseId, status } = this.toPrimitives();
-    return { id, knowledgeBaseId, status };
   }
 
   private fieldChangedData(
