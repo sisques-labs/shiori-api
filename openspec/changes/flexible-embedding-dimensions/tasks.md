@@ -18,22 +18,22 @@
 - [ ] 1.3 `domain/exceptions/unknown-embedding-model.exception.ts`
 - [ ] 1.4 `domain/exceptions/no-embedding-table-for-dimension.exception.ts`
 
-## Phase 2: `embeddings` — Table-per-dimension persistence
+## Phase 2: `embeddings` — Normalized persistence (metadata + per-dimension vector tables)
 
-- [ ] 2.1 `infrastructure/persistence/typeorm/entities/embedding.entity.ts` — convert to an abstract base (drop the fixed `embedding` column)
-- [ ] 2.2 `infrastructure/persistence/typeorm/entities/embedding-entity.factory.ts` — `createEmbeddingTypeOrmEntity(dimensions)`; `EMBEDDING_DIMENSIONS`, `EMBEDDING_ENTITIES_BY_DIMENSION` constants derived from the registry
+- [ ] 2.1 `infrastructure/persistence/typeorm/entities/embedding.entity.ts` — drop the `embedding` column entirely; entity now maps the unchanged `embeddings` table as pure metadata
+- [ ] 2.2 `infrastructure/persistence/typeorm/entities/embedding-vector-entity.factory.ts` — `EmbeddingVectorTypeOrmEntity` abstract base (`embeddingId` PK/FK only) + `createEmbeddingVectorTypeOrmEntity(dimensions)`; `EMBEDDING_DIMENSIONS`, `EMBEDDING_VECTOR_ENTITIES_BY_DIMENSION` constants derived from the registry
 - [ ] 2.3 `domain/value-objects/embedding-vector/embedding-vector.value-object.ts` — accept `dimensions` per-instance instead of the deleted global constant
-- [ ] 2.4 `domain/repositories/write/embedding-write.repository.ts` — add `dimensions: number` param to `saveMany`/`deleteByDocumentId`/`deleteByKnowledgeBaseId`
+- [ ] 2.4 `domain/repositories/write/embedding-write.repository.ts` — `saveMany(embeddings, dimensions)`; `deleteByDocumentId(documentId)` and `deleteByKnowledgeBaseId(knowledgeBaseId)` take NO dimension; add `deleteByKnowledgeBaseIdAndModel(knowledgeBaseId, model)`
 - [ ] 2.5 `domain/repositories/read/embedding-read.repository.ts` — add `dimensions: number` param to `search`
-- [ ] 2.6 `infrastructure/persistence/typeorm/repositories/embedding-typeorm-write.repository.ts` — route to the repository matching the given `dimensions` (built from `EMBEDDING_ENTITIES_BY_DIMENSION`); throw `NoEmbeddingTableForDimensionException` on an unregistered dimension
-- [ ] 2.7 `infrastructure/persistence/typeorm/repositories/embedding-typeorm-read.repository.ts` — same routing for `search()`
-- [ ] 2.8 `infrastructure/persistence/typeorm/mappers/embedding-typeorm.mapper.ts` — adjust for the abstract base entity type
+- [ ] 2.6 `infrastructure/persistence/typeorm/repositories/embedding-typeorm-write.repository.ts` — `saveMany` writes both the `embeddings` metadata rows and the matching `embedding_vectors_{dimensions}` rows in one transaction, correlated by the aggregate's pre-generated id; `deleteByDocumentId`/`deleteByKnowledgeBaseId` delete from `embeddings` only (cascade handles the vector row); `deleteByKnowledgeBaseIdAndModel` filters by the `model` column; throw `NoEmbeddingTableForDimensionException` on an unregistered dimension in `saveMany`
+- [ ] 2.7 `infrastructure/persistence/typeorm/repositories/embedding-typeorm-read.repository.ts` — `search()` becomes a raw `JOIN embeddings e ON v.embedding_id = e.id` against the `embedding_vectors_{dimensions}` table resolved from the given `dimensions`
+- [ ] 2.8 `infrastructure/persistence/typeorm/mappers/embedding-typeorm.mapper.ts` — adjust for the metadata-only entity; `toDomain`/`toViewModel` compose the vector back in from a separately-fetched `embedding_vectors_{dimension}` row where still needed (`findById`/`findByCriteria`)
 
 ## Phase 3: Database migrations
 
 - [ ] 3.1 New migration — alter `knowledge_bases`: add `embedding_model varchar(100)` (backfill existing rows with `'text-embedding-3-small'`, then `NOT NULL`), add `embedding_status varchar(20) NOT NULL DEFAULT 'READY'`
-- [ ] 3.2 New migration — drop `embeddings` table (no production data to preserve); `down()` recreates it exactly as `CreateEmbeddings1780000000003`
-- [ ] 3.3 New migration — create `embeddings_768`, `embeddings_1024`, `embeddings_1536`, `embeddings_3072` (one per distinct dimension in the initial registry), each with the FK constraints, `knowledge_base_id`/`document_id` indexes, and HNSW cosine index from design.md's schema; `down()` drops all four
+- [ ] 3.2 New migration — alter `embeddings`: `DROP COLUMN "embedding"` and its HNSW index only; every other column/FK/index on `embeddings` is untouched; `down()` re-adds `vector(1536)` and its HNSW index (the previous fixed dimension), matching `CreateEmbeddings1780000000003`
+- [ ] 3.3 New migration — create `embedding_vectors_768`, `embedding_vectors_1024`, `embedding_vectors_1536`, `embedding_vectors_3072` (one per distinct dimension in the initial registry), each with `embedding_id` (PK, FK to `embeddings.id` `ON DELETE CASCADE`), `embedding vector(N)`, and its own HNSW cosine index; `down()` drops all four
 
 ## Phase 4: `embeddings` — `IEmbeddingPort` model parameter
 
@@ -87,7 +87,7 @@
 - [ ] 10.3 `infrastructure/adapters/knowledge-base-embedding-model-changed.listener.ts` — `@EventsHandler(KnowledgeBaseEmbeddingModelChangeRequestedEvent)` from `@contexts/knowledge-bases/`; enqueues the reembed job
 - [ ] 10.4 `application/ports/chunk-source.port.ts` — add `findKnowledgeBaseDocumentIds(knowledgeBaseId): Promise<string[]>`
 - [ ] 10.5 `infrastructure/adapters/document-chunk-source.adapter.ts` — implement the new method via `documents`' new query (Phase 11)
-- [ ] 10.6 `infrastructure/processors/reembed-knowledge-base.processor.ts` — `@Processor('embeddings') extends WorkerHost`; opens `knowledgeBaseContext.run`; per design.md §"Re-embedding pipeline" — clears target-dimension rows for this KB first (idempotent retry, per proposal.md Open Questions), embeds every document's chunks under the new model, deletes previous-dimension rows only after all documents succeed, dispatches `CompleteKnowledgeBaseReembeddingCommand`/`FailKnowledgeBaseReembeddingCommand`
+- [ ] 10.6 `infrastructure/processors/reembed-knowledge-base.processor.ts` — `@Processor('embeddings') extends WorkerHost`; opens `knowledgeBaseContext.run`; per design.md §"Re-embedding pipeline" — `deleteByKnowledgeBaseIdAndModel(kb, newModel)` first (idempotent retry, per proposal.md Open Questions), embeds every document's chunks under the new model, `deleteByKnowledgeBaseIdAndModel(kb, previousModel)` only after all documents succeed, dispatches `CompleteKnowledgeBaseReembeddingCommand`/`FailKnowledgeBaseReembeddingCommand`
 - [ ] 10.7 `infrastructure/processors/embed-document-chunks.processor.ts` — resolve `IKnowledgeBaseEmbeddingConfigPort` + registry dimension before embedding, pass `model`/`dimensions` through (Phase 5's `EmbedDocumentChunks` flow, modified per design.md §"Data Flow")
 
 ## Phase 11: `documents` — New internal query
@@ -130,13 +130,13 @@
 ## Phase 17: Tests
 
 - [ ] 17.1 Unit — `embedding-model-registry.service.spec.ts`: found/unknown/list
-- [ ] 17.2 Unit — routing write/read repository specs: resolves the correct underlying repository per `dimensions`, throws on an unregistered one
+- [ ] 17.2 Unit — write repository spec: `saveMany` writes both `embeddings` and the correct `embedding_vectors_{dimensions}` table in one transaction; `deleteByDocumentId`/`deleteByKnowledgeBaseId` never require a dimension; `deleteByKnowledgeBaseIdAndModel` filters by `model`; read repository spec: `search` resolves the correct vector table per `dimensions`, throws on an unregistered one
 - [ ] 17.3 Unit — `change-knowledge-base-embedding-model.handler.spec.ts`: happy path, no-op on same model, 409 on already-`REEMBEDDING`, 400 on unknown model
 - [ ] 17.4 Unit — `embedding-search.handler.spec.ts`: 409 when status !== READY, passes correct `model`/`dimensions` when READY
-- [ ] 17.5 Unit — `reembed-knowledge-base.processor.spec.ts`: happy path across multiple documents, dispatches Complete on success, dispatches Fail + preserves old table on mid-run failure, clears target table before starting (retry safety)
+- [ ] 17.5 Unit — `reembed-knowledge-base.processor.spec.ts`: happy path across multiple documents, dispatches Complete on success, dispatches Fail + preserves previous model's rows on mid-run failure, clears target model's rows before starting (retry safety)
 - [ ] 17.6 Unit — `embed-document-chunks.processor.spec.ts` (updated): resolves KB config + dimension before embedding
 - [ ] 17.7 Unit — `openai-compatible-embedding.service.spec.ts` (updated): asserts the passed-in `model` is used, not a config default
-- [ ] 17.8 Integration — two `embeddings_{dimension}` tables in the same test run; search only touches the table matching the resolved dimension; tenant isolation within a shared-dimension table (SC-06)
+- [ ] 17.8 Integration — insert embeddings under two different dimensions in the same test run; deleting by `document_id`/`knowledge_base_id` cascades into the correct `embedding_vectors_{dimension}` table with no dimension passed by the caller; search's join only touches the table matching the resolved dimension; tenant isolation within a shared-dimension vector table (SC-06)
 - [ ] 17.9 Integration — `knowledge_bases` migration `up`/`down` round-trip, including the backfill default for pre-existing rows
 - [ ] 17.10 E2E — `POST /knowledge-bases` requires/validates `embeddingModel`; `PATCH /knowledge-bases/:id/embedding-model` happy path + 409 mid-reembed + 400 unknown model
 - [ ] 17.11 E2E — `GET /embeddings/models` returns the registry, unauthenticated

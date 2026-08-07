@@ -7,11 +7,18 @@ Three pieces, in order of how they compose:
 1. **A static model registry** in `embeddings` — the single source of truth
    mapping a model id to its provider and dimension. Nothing ever computes
    a dimension at runtime; it's looked up.
-2. **A physical table per distinct dimension** in `embeddings` — pgvector's
-   fixed-width `vector(N)` column means one dimension per table is the only
-   option that keeps ANN indexing (HNSW) usable. A routing layer picks the
-   right table based on the dimension resolved for the Knowledge Base doing
-   the read/write.
+2. **The vector itself split into a physical table per distinct dimension**,
+   separate from the row's metadata — pgvector's fixed-width `vector(N)`
+   column means one dimension per table is the only option that keeps ANN
+   indexing (HNSW) usable, but nothing else about an embedding row depends
+   on its dimension. Keeping metadata (`knowledge_base_id`, `document_id`,
+   `chunk_id`, `chunk_text`, `chunk_position`, `model`, timestamps) in one
+   unchanged `embeddings` table and only the `vector(N)` column in
+   per-dimension child tables (`embedding_vectors_{dimension}`, one row
+   each, FK'd back to `embeddings.id` with `ON DELETE CASCADE`) means
+   deletes, FKs, and the two existing non-vector indexes stay defined
+   exactly once — only inserts and similarity search need to know which
+   dimension table to touch.
 3. **A per-Knowledge-Base `embeddingModel`/`embeddingStatus`** in
    `knowledge-bases` — the model becomes tenant configuration instead of a
    global env var, and a status field gates search during re-embedding.
@@ -38,9 +45,9 @@ export const EMBEDDING_MODELS_REGISTRY: readonly EmbeddingModelDefinition[] = [
 Adding a model that reuses an already-covered dimension (e.g. another
 1536-dim OpenAI-compatible model) is a one-line addition to this array —
 no migration needed. Adding a model with a brand-new dimension needs both
-a registry entry and a migration creating `embeddings_{dimension}` (see
-"Table-per-dimension" below); this is documented as the standard "add a new
-embedding model" runbook in `embeddings/README.md`, not hidden.
+a registry entry and a migration creating `embedding_vectors_{dimension}`
+(see "Normalized storage" below); this is documented as the standard "add
+a new embedding model" runbook in `embeddings/README.md`, not hidden.
 
 `EMBEDDING_VECTOR_DIMENSIONS` (the old single hardcoded constant) is
 deleted — there is no longer one global dimension.
@@ -74,119 +81,133 @@ static configuration; it does not require a Knowledge Base API key. Used by
 callers to populate a model picker and by their command handlers'
 server-side validation (see "Cross-context model validation" below).
 
-## Table-per-dimension
+## Normalized storage: metadata table + one vector table per dimension
 
-### Why per-dimension, not per-model
+### Why split the vector out, not just table-per-dimension
 
-Two models that happen to share a dimension (e.g. `text-embedding-3-small`
-and `text-embedding-ada-002`, both 1536) can share a physical table — the
-only thing pgvector cares about is column width. The existing `model`
-varchar column on each row already disambiguates which model actually
-produced a given vector (carried over unchanged from the current schema).
-Keying tables by model instead of dimension would create redundant
-identical-shape tables for no benefit.
+An earlier version of this design duplicated the *entire* row shape
+(`knowledge_base_id`, `document_id`, `chunk_id`, `chunk_text`,
+`chunk_position`, `model`, timestamps, both FKs, both non-vector indexes)
+into every per-dimension table. That works, but it means every delete path
+(`deleteByDocumentId`, `deleteByKnowledgeBaseId`) has to first resolve
+*which* table a row lives in before it can delete it — even though
+deletion is about `document_id`/`knowledge_base_id`, never about the
+vector's width. Splitting the vector into its own child table removes that
+coupling entirely: deleting from the (single, unchanged) `embeddings`
+table cascades to whichever dimension table actually holds the
+corresponding vector, without the caller ever naming a dimension.
 
 ### Schema
 
-For every distinct `dimensions` value in the registry, one table:
+`embeddings` (existing table, altered — not dropped):
 
 ```sql
-CREATE TABLE "embeddings_{dimension}" (
-  "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
-  "knowledge_base_id" uuid NOT NULL,
-  "document_id" uuid NOT NULL,
-  "chunk_id" uuid NOT NULL,
-  "chunk_text" text NOT NULL,
-  "chunk_position" integer NOT NULL,
+ALTER TABLE "embeddings" DROP COLUMN "embedding";
+```
+
+Everything else on it — `id`, `knowledge_base_id`, `document_id`,
+`chunk_id`, `chunk_text`, `chunk_position`, `model`, `created_at`,
+`updated_at`, both FKs, both indexes — is untouched.
+
+One new table per distinct `dimensions` value in the registry:
+
+```sql
+CREATE TABLE "embedding_vectors_{dimension}" (
+  "embedding_id" uuid NOT NULL,
   "embedding" vector({dimension}) NOT NULL,
-  "model" character varying(100) NOT NULL,
-  "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT "PK_embeddings_{dimension}_id" PRIMARY KEY ("id"),
-  CONSTRAINT "FK_embeddings_{dimension}_document_id" FOREIGN KEY ("document_id")
-    REFERENCES "documents" ("id") ON DELETE CASCADE,
-  CONSTRAINT "FK_embeddings_{dimension}_chunk_id" FOREIGN KEY ("chunk_id")
-    REFERENCES "chunks" ("id") ON DELETE CASCADE
+  CONSTRAINT "PK_embedding_vectors_{dimension}_id" PRIMARY KEY ("embedding_id"),
+  CONSTRAINT "FK_embedding_vectors_{dimension}_embedding_id" FOREIGN KEY ("embedding_id")
+    REFERENCES "embeddings" ("id") ON DELETE CASCADE
 );
-CREATE INDEX "IDX_embeddings_{dimension}_knowledge_base_id" ON "embeddings_{dimension}" ("knowledge_base_id");
-CREATE INDEX "IDX_embeddings_{dimension}_document_id" ON "embeddings_{dimension}" ("document_id");
-CREATE INDEX "IDX_embeddings_{dimension}_embedding_hnsw" ON "embeddings_{dimension}"
+CREATE INDEX "IDX_embedding_vectors_{dimension}_hnsw" ON "embedding_vectors_{dimension}"
   USING hnsw ("embedding" vector_cosine_ops);
 ```
 
-Identical shape to the current `embeddings` table, just parameterized by
-dimension and table name.
+Two columns, one FK, one index — that's the entire cost of supporting a
+new dimension.
 
-### TypeORM entity-per-dimension
+### TypeORM entities
 
-TypeORM's `@Entity`/`@Column` decorators are static — there is no way to
-parameterize a single class's table name or column width at runtime. A
-factory function generates one distinct class per dimension in the
-registry:
+`EmbeddingTypeOrmEntity` maps to the (unchanged) `embeddings` table and
+loses its `embedding` column entirely — pure metadata now. A separate
+factory generates one minimal vector-only entity class per dimension:
 
 ```ts
-// infrastructure/persistence/typeorm/entities/embedding-entity.factory.ts
-export function createEmbeddingTypeOrmEntity(dimensions: number): Type<EmbeddingTypeOrmEntity> {
-  @Entity(`embeddings_${dimensions}`)
-  @Index(`IDX_embeddings_${dimensions}_knowledge_base_id`, ['knowledgeBaseId'])
-  @Index(`IDX_embeddings_${dimensions}_document_id`, ['documentId'])
-  class EmbeddingEntityForDimension extends EmbeddingTypeOrmEntity {
+// infrastructure/persistence/typeorm/entities/embedding-vector-entity.factory.ts
+export abstract class EmbeddingVectorTypeOrmEntity {
+  @PrimaryColumn({ name: 'embedding_id', type: 'uuid' })
+  embeddingId!: string;
+}
+
+export function createEmbeddingVectorTypeOrmEntity(
+  dimensions: number,
+): Type<EmbeddingVectorTypeOrmEntity> {
+  @Entity(`embedding_vectors_${dimensions}`)
+  class EmbeddingVectorEntityForDimension extends EmbeddingVectorTypeOrmEntity {
     @Column({ type: 'vector', length: dimensions })
     embedding!: number[];
   }
-  return EmbeddingEntityForDimension;
+  return EmbeddingVectorEntityForDimension;
 }
-```
 
-`EmbeddingTypeOrmEntity` becomes an abstract base (`id`, `knowledgeBaseId`,
-`documentId`, `chunkId`, `chunkText`, `chunkPosition`, `model`,
-`createdAt`, `updatedAt` — everything except `embedding`, whose type
-depends on dimension). A module-level constant builds one concrete class
-per unique dimension in `EMBEDDING_MODELS_REGISTRY` and registers all of
-them in `TypeOrmModule.forFeature([...])`:
-
-```ts
 export const EMBEDDING_DIMENSIONS = [
   ...new Set(EMBEDDING_MODELS_REGISTRY.map((m) => m.dimensions)),
 ];
-export const EMBEDDING_ENTITIES_BY_DIMENSION = new Map(
-  EMBEDDING_DIMENSIONS.map((d) => [d, createEmbeddingTypeOrmEntity(d)]),
+export const EMBEDDING_VECTOR_ENTITIES_BY_DIMENSION = new Map(
+  EMBEDDING_DIMENSIONS.map((d) => [d, createEmbeddingVectorTypeOrmEntity(d)]),
 );
 ```
 
-### Routing repositories
+All generated classes plus the unchanged `EmbeddingTypeOrmEntity` are
+registered in `TypeOrmModule.forFeature([...])`.
 
-The read/write repository interfaces stay the same shape as today
-(`IEmbeddingReadRepository.search`, `IEmbeddingWriteRepository.saveMany` /
-`deleteByDocumentId` / `deleteByKnowledgeBaseId`), but the TypeORM
-implementations become **routing** repositories: instead of one injected
-`Repository<EmbeddingTypeOrmEntity>`, they hold a
-`Map<number, Repository<EmbeddingTypeOrmEntity>>` (one per dimension,
-built from `EMBEDDING_ENTITIES_BY_DIMENSION` at construction) and resolve
-which one to use per call from the **caller-supplied dimension** — every
-method gains a `dimensions: number` parameter (or the repository is
-constructed per-call already scoped, see "Resolving a Knowledge Base's
-current model" below for who supplies it). This mirrors the existing
-tenant-scoping pattern (`createTenantRepository` wraps a raw repository
-with an ambient `KnowledgeBaseContext`) but adds a second axis (dimension)
-that cannot be ambient the same way, because unlike the tenant id it
-determines *which table*, not just a `WHERE` clause.
+### Repositories
 
 ```ts
 export interface IEmbeddingWriteRepository {
+  // Insert needs the dimension to know which vector table to write to.
   saveMany(embeddings: EmbeddingAggregate[], dimensions: number): Promise<void>;
-  deleteByDocumentId(documentId: string, dimensions: number): Promise<void>;
-  deleteByKnowledgeBaseId(knowledgeBaseId: string, dimensions: number): Promise<void>;
+  // Deletes never need a dimension — they delete from `embeddings`
+  // (metadata) and rely on ON DELETE CASCADE to remove the matching
+  // vector row from whichever dimension table it's actually in.
+  deleteByDocumentId(documentId: string): Promise<void>;
+  deleteByKnowledgeBaseId(knowledgeBaseId: string): Promise<void>;
+  // Used by the re-embed pipeline: clear a specific model's rows for a
+  // Knowledge Base without touching rows just written under a different
+  // (target) model for the same tenant. See "Re-embedding pipeline" below.
+  deleteByKnowledgeBaseIdAndModel(knowledgeBaseId: string, model: string): Promise<void>;
 }
 
 export interface IEmbeddingReadRepository {
+  // Search still needs the dimension — it determines which vector table
+  // to JOIN against before the ORDER BY ... <=> ... even runs.
   search(vector: number[], topK: number, dimensions: number): Promise<IEmbeddingSearchResult[]>;
 }
 ```
 
-Every call site already sits inside a flow that knows (or can resolve) the
-Knowledge Base's current `embeddingModel` — see next section — so this is
-a mechanical, not semantic, change to each caller.
+`saveMany` runs both inserts (`embeddings` metadata rows, then the
+matching `embedding_vectors_{dimensions}` rows) inside one DB transaction.
+No extra round trip is needed to correlate the two: `EmbeddingAggregate.id`
+is already generated client-side before persistence (`UuidValueObject.generate()`
+in `EmbedDocumentChunksProcessor`/`ReembedKnowledgeBaseProcessor`, same
+pattern every other aggregate in this codebase already uses), so both rows
+for a given embedding share a known id upfront.
+
+`search()` becomes a hand-written join instead of a single-table scan:
+
+```sql
+SELECT e.chunk_id, e.document_id, e.chunk_text, e.chunk_position,
+       1 - (v.embedding <=> :queryVector) AS score
+FROM "embeddings" e
+JOIN "embedding_vectors_{dimensions}" v ON v.embedding_id = e.id
+WHERE e.knowledge_base_id = :knowledgeBaseId
+ORDER BY v.embedding <=> :queryVector
+LIMIT :topK
+```
+
+The HNSW index on `embedding_vectors_{dimensions}.embedding` still drives
+the `ORDER BY` exactly as before — the join is on primary keys and adds no
+meaningful cost.
 
 ## Resolving a Knowledge Base's current model
 
@@ -224,6 +245,14 @@ documents' re-embed state) accordingly.
 HTTP 409) if `embeddingStatus !== 'READY'`, before calling the provider or
 touching any table — this is `retrieval`'s search-blocking requirement,
 enforced at the source rather than duplicated in `retrieval`.
+
+**Only the embed pipeline and search need this port.** Because deletes no
+longer take a `dimensions` parameter (see "Repositories" above), the three
+cleanup listeners (`DocumentChunkingStartedListener`, `DocumentDeletedListener`,
+`KnowledgeBaseDeletedListener`) are **unchanged** by this proposal — they
+call `deleteByDocumentId`/`deleteByKnowledgeBaseId` exactly as they do
+today, with no new cross-context dependency on `knowledge-bases`' embedding
+config at all.
 
 ## Knowledge Base changes
 
@@ -331,13 +360,18 @@ KnowledgeBaseEmbeddingModelChangedListener (embeddings/infrastructure/adapters/)
 ReembedKnowledgeBaseProcessor.process(job)
      │
 knowledgeBaseContext.run(knowledgeBaseId, async () => {
+     ├─ EmbeddingWriteRepo.deleteByKnowledgeBaseIdAndModel(knowledgeBaseId, newModel)
+     │     # clears any partial rows from a previously failed attempt at
+     │     # this same target model — makes every attempt a clean rewrite,
+     │     # regardless of how a prior one failed (see proposal.md's
+     │     # "Partial re-embed retry" Open Question)
      ├─ documentIds = ChunkSourcePort.findKnowledgeBaseDocumentIds(knowledgeBaseId)  # new
      ├─ for each documentId (sequential batches, same batching the initial
      │     pipeline already uses per document — no new concurrency model):
      │     ├─ chunks = ChunkSourcePort.findByDocumentId(documentId)
      │     ├─ vectors = EmbeddingPort.embedBatch(chunks.map(c => c.text), newModel)
      │     └─ EmbeddingWriteRepo.saveMany(built EmbeddingAggregate[], newDimensions)
-     ├─ EmbeddingWriteRepo.deleteByKnowledgeBaseId(knowledgeBaseId, previousDimensions)
+     ├─ EmbeddingWriteRepo.deleteByKnowledgeBaseIdAndModel(knowledgeBaseId, previousModel)
      └─ dispatch CompleteKnowledgeBaseReembeddingCommand (or Fail... on any error)
 })
 ```
@@ -348,7 +382,17 @@ backed by a new internal-only query in `documents`
 per-document lookup (`findByDocumentId`), which was sufficient when only
 one document's chunks were ever embedded at a time.
 
-Deleting the old dimension's rows only after every document has been
+`deleteByKnowledgeBaseIdAndModel` filters by `model` (a plain column on the
+unchanged `embeddings` table), not by dimension — the new rows being
+written under `newModel` and the old rows still under `previousModel`
+coexist in the *same* `embeddings` table (and possibly, if both models
+happen to share a dimension, the same vector table too) for the duration
+of the job, disambiguated purely by the `model` value on each row. This is
+what makes it safe to write the new model's rows before deleting the old
+model's rows, rather than having to delete-then-insert with a window of
+zero embeddings.
+
+Deleting the old model's rows only after every document has been
 successfully re-embedded (not incrementally per document) avoids a partial
 state where some documents are searchable under the new model and others
 have no embeddings at all if the job fails partway — better to fail with
@@ -361,7 +405,7 @@ searchable, but doing so safely."
 | Decision | Choice | Alternatives rejected | Rationale |
 |----------|--------|------------------------|-----------|
 | Dimension discovery | Static code registry | Live probe call to the provider on registration | Zero added provider cost/latency/failure-mode for the MVP; the registry covers the models this service ships support for. Live probing deferred (see Open Questions) |
-| Table strategy | One physical table per distinct **dimension** | One table per model; one JSON/array column with app-side cosine similarity; a single table padded to the max dimension | pgvector requires fixed column width, so per-dimension is the minimum table count that still allows HNSW indexing; per-model would create redundant identical tables when models share a width; app-side similarity doesn't scale and defeats the point of an ANN index; padding to max width wastes storage/index quality for every smaller-dimension model and still needs per-width indexes to be useful |
+| Table strategy | Normalized: unchanged `embeddings` metadata table + one `embedding_vectors_{dimension}` table per distinct dimension, linked 1:1 by `ON DELETE CASCADE` | Duplicate the full row shape per dimension (one fat table per dimension); one table per model instead of per dimension; a single JSON/array column with app-side cosine similarity; a single table padded to the max dimension | pgvector requires fixed column width, so *some* per-dimension split is unavoidable, but splitting only the vector column keeps every non-vector index/FK/delete path defined exactly once instead of duplicated per dimension, and makes deletes dimension-agnostic via cascade; per-model tables would be redundant when models share a width; app-side similarity doesn't scale and defeats the point of an ANN index; padding to max width wastes storage/index quality for every smaller-dimension model and still needs per-width indexes to be useful |
 | Model change behavior | Blocking: `REEMBEDDING` status rejects search until the background job completes | Zero-downtime dual-serving with atomic cutover | Simpler state machine (no "pending model" alongside "current model"); acceptable UX per product decision — a Knowledge Base's own operator triggers this deliberately and can expect a transitional window; non-blocking variant recorded as explicit future work |
 | Model scope | Per Knowledge Base, stored as a KB field | Global env var (status quo) | Product requirement: different Knowledge Bases must be able to use different models, and a single Knowledge Base must be able to change models without breaking |
 | Cross-context model resolution | `embeddings` reads `knowledge-bases`' view model via `QueryBus` (extended `KnowledgeBaseFindByIdQuery`) | Duplicate `embeddingModel` into every `EmbeddingSearchQuery`/pipeline call from the caller | Avoids trusting/re-validating a caller-supplied model on every call; single read at the point where a dimension actually needs resolving keeps the source of truth in one place (`knowledge-bases`) |
@@ -407,20 +451,29 @@ RetrievalSearchQuery ──> EmbeddingSearchAdapter ──(QueryBus)──> Embe
 | `embedding_model` | varchar(100) | No | New. No default — required at creation |
 | `embedding_status` | varchar(20) | No | New. Default `'READY'` |
 
-### `embeddings_{dimension}` (replaces `embeddings`)
+### `embeddings` (altered — vector column removed)
 
-Identical column set to the current `embeddings` table (see proposal.md's
-Impact table / current migration), parameterized per dimension as shown
-above. Initial migration creates one per distinct dimension in
+Same table, same rows, same FKs/indexes as today, minus the `embedding`
+column. See proposal.md's Impact table for the pre-existing column list.
+
+### `embedding_vectors_{dimension}` (new — replaces the old `embedding` column)
+
+| Column | Type | Nullable | Notes |
+|--------|------|----------|-------|
+| `embedding_id` | UUID | No | PK; FK to `embeddings.id`, `ON DELETE CASCADE` |
+| `embedding` | vector({dimension}) | No | |
+
+Initial migration creates one per distinct dimension in
 `EMBEDDING_MODELS_REGISTRY` at the time this change ships:
-`embeddings_768`, `embeddings_1024`, `embeddings_1536`, `embeddings_3072`.
+`embedding_vectors_768`, `embedding_vectors_1024`, `embedding_vectors_1536`,
+`embedding_vectors_3072`. Each has its own HNSW cosine index.
 
 ## Testing Strategy
 
 | Layer | What | Approach |
 |-------|------|----------|
-| Unit | `EmbeddingModelRegistryService` (found/unknown), routing repositories (resolve correct table per dimension — mocked repo map), `ChangeKnowledgeBaseEmbeddingModel` handler (no-op on same model, rejects mid-reembed, emits event), `EmbeddingSearchQueryHandler` (rejects when status !== READY), `ReembedKnowledgeBaseProcessor` (happy path across multiple documents, failure path dispatches Fail command, deletes old table only after all documents succeed) | Jest, `jest.Mocked<T>` |
-| Integration | Insert into two different `embeddings_{dimension}` tables in the same test run and assert search only ever touches the table matching the resolved dimension; `knowledge_bases` migration round-trip (`up`/`down`) | Real Postgres (pgvector image) |
+| Unit | `EmbeddingModelRegistryService` (found/unknown), write repository (transactional saveMany writes both tables with matching ids; delete methods never require a dimension), read repository (resolves the correct vector table per dimension for the join — mocked repo map), `ChangeKnowledgeBaseEmbeddingModel` handler (no-op on same model, rejects mid-reembed, emits event), `EmbeddingSearchQueryHandler` (rejects when status !== READY), `ReembedKnowledgeBaseProcessor` (happy path across multiple documents, failure path dispatches Fail command, deletes previous model's rows only after all documents succeed, clears target model's rows before starting) | Jest, `jest.Mocked<T>` |
+| Integration | Insert embeddings under two different dimensions in the same test run; assert deleting by `document_id`/`knowledge_base_id` from `embeddings` cascades correctly into whichever `embedding_vectors_{dimension}` table held the vector, with no dimension passed by the caller; assert search's join only ever touches the table matching the resolved dimension; `knowledge_bases` migration round-trip (`up`/`down`) | Real Postgres (pgvector image) |
 | E2E | `POST /knowledge-bases` requires `embeddingModel`, rejects unknown model; `PATCH .../embedding-model` flips status to `REEMBEDDING`, search returns 409 meanwhile, then flips back to `READY` after the (test-stubbed) embedding port completes and results reflect the new model's table | supertest, embedding port stubbed at the HTTP boundary |
 
 ## Migration / Rollout
@@ -431,11 +484,16 @@ Three migrations, in order:
    rows, if any, with `'text-embedding-3-small'` — the previous implicit
    global default — before making it `NOT NULL`), add `embedding_status`
    default `'READY'`.
-2. **Drop `embeddings`**: no production data to preserve (explicit product
-   decision) — `down()` recreates the original table exactly as the
-   current `CreateEmbeddings1780000000003` migration does.
-3. **Create `embeddings_{dimension}` tables**: one per distinct dimension
-   in the initial registry; `down()` drops all of them.
+2. **Alter `embeddings`**: `DROP COLUMN "embedding"` (and its HNSW index).
+   No production data to preserve (explicit product decision) for the
+   vector values themselves — `down()` re-adds a `vector(1536)` column
+   (the previous fixed dimension) and its HNSW index, matching the current
+   `CreateEmbeddings1780000000003` shape. Every other column, both FKs, and
+   both existing indexes on `embeddings` are untouched by this migration.
+3. **Create `embedding_vectors_{dimension}` tables**: one per distinct
+   dimension in the initial registry, each with its FK to `embeddings.id`
+   (`ON DELETE CASCADE`) and its own HNSW index; `down()` drops all of
+   them.
 
 `.env.example`: remove `EMBEDDINGS_MODEL` (no longer meaningful — model is
 per-Knowledge-Base now); `EMBEDDINGS_BASE_URL`/`EMBEDDINGS_API_KEY` remain
