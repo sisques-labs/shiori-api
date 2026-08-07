@@ -15,10 +15,7 @@ import { CreateKnowledgeBaseCommand } from './create-knowledge-base.command';
 
 export interface CreateKnowledgeBaseResult {
   id: string;
-  name: string;
-  description: string | null;
   apiKey: string;
-  createdAt: Date;
 }
 
 @CommandHandler(CreateKnowledgeBaseCommand)
@@ -66,10 +63,7 @@ export class CreateKnowledgeBaseCommandHandler
 
     return {
       id: knowledgeBase.id.value,
-      name: knowledgeBase.name.value,
-      description: knowledgeBase.description?.value ?? null,
       apiKey,
-      createdAt: now,
     };
   }
 }

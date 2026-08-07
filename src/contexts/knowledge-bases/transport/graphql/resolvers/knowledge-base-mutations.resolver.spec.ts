@@ -1,6 +1,8 @@
 import { CommandBus } from '@nestjs/cqrs';
 import { MutationResponseGraphQLMapper } from '@sisques-labs/nestjs-kit/graphql';
 
+import { AssertKnowledgeBaseViewModelExistsService } from '@contexts/knowledge-bases/application/services/read/assert-knowledge-base-view-model-exists/assert-knowledge-base-view-model-exists.service';
+
 import { CreateKnowledgeBaseGraphQLDto } from '../dtos/requests/create-knowledge-base-graphql.dto';
 import { KnowledgeBaseGraphQLMapper } from '../mappers/knowledge-base/knowledge-base.mapper';
 import { KnowledgeBaseMutationsResolver } from './knowledge-base-mutations.resolver';
@@ -9,6 +11,7 @@ describe('KnowledgeBaseMutationsResolver', () => {
   let commandBus: jest.Mocked<CommandBus>;
   let mutationResponseGraphQLMapper: jest.Mocked<MutationResponseGraphQLMapper>;
   let graphQLMapper: KnowledgeBaseGraphQLMapper;
+  let assertViewModelExists: jest.Mocked<AssertKnowledgeBaseViewModelExistsService>;
   let resolver: KnowledgeBaseMutationsResolver;
 
   beforeEach(() => {
@@ -17,25 +20,33 @@ describe('KnowledgeBaseMutationsResolver', () => {
       toResponseDto: jest.fn((props) => props),
     } as any;
     graphQLMapper = new KnowledgeBaseGraphQLMapper();
+    assertViewModelExists = { execute: jest.fn() } as any;
     resolver = new KnowledgeBaseMutationsResolver(
       commandBus,
       mutationResponseGraphQLMapper,
       graphQLMapper,
+      assertViewModelExists,
     );
   });
 
   it('createKnowledgeBase returns the plaintext apiKey', async () => {
     commandBus.execute.mockResolvedValue({
       id: 'kb-1',
+      apiKey: 'kb_plaintext',
+    });
+    assertViewModelExists.execute.mockResolvedValue({
+      id: 'kb-1',
       name: 'Docs',
       description: null,
-      apiKey: 'kb_plaintext',
+      apiKeyHash: 'a'.repeat(64),
       createdAt: new Date(),
-    });
+      updatedAt: new Date(),
+    } as any);
 
     const input: CreateKnowledgeBaseGraphQLDto = { name: 'Docs' };
     const result = await resolver.createKnowledgeBase(input);
 
+    expect(assertViewModelExists.execute).toHaveBeenCalledWith('kb-1');
     expect(result.apiKey).toBe('kb_plaintext');
   });
 

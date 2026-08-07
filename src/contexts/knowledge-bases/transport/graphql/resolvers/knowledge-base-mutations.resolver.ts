@@ -12,6 +12,7 @@ import { DeleteKnowledgeBaseCommand } from '@contexts/knowledge-bases/applicatio
 import { RotateKnowledgeBaseApiKeyCommand } from '@contexts/knowledge-bases/application/commands/rotate-knowledge-base-api-key/rotate-knowledge-base-api-key.command';
 import { RotateKnowledgeBaseApiKeyResult } from '@contexts/knowledge-bases/application/commands/rotate-knowledge-base-api-key/rotate-knowledge-base-api-key.handler';
 import { UpdateKnowledgeBaseCommand } from '@contexts/knowledge-bases/application/commands/update-knowledge-base/update-knowledge-base.command';
+import { AssertKnowledgeBaseViewModelExistsService } from '@contexts/knowledge-bases/application/services/read/assert-knowledge-base-view-model-exists/assert-knowledge-base-view-model-exists.service';
 import { CurrentKnowledgeBaseId } from '@core/tenancy/current-knowledge-base-id.decorator';
 import { SkipKnowledgeBaseAuth } from '@core/tenancy/skip-knowledge-base-auth.decorator';
 import { KnowledgeBaseApiKeyGuard } from '@core/tenancy/knowledge-base-api-key.guard';
@@ -31,6 +32,7 @@ export class KnowledgeBaseMutationsResolver {
     private readonly commandBus: CommandBus,
     private readonly mutationResponseGraphQLMapper: MutationResponseGraphQLMapper,
     private readonly graphQLMapper: KnowledgeBaseGraphQLMapper,
+    private readonly assertViewModelExists: AssertKnowledgeBaseViewModelExistsService,
   ) {}
 
   @SkipKnowledgeBaseAuth()
@@ -40,7 +42,7 @@ export class KnowledgeBaseMutationsResolver {
   ): Promise<KnowledgeBaseCreatedResponseDto> {
     this.logger.log(`Creating knowledge base: ${input.name}`);
 
-    const result = await this.commandBus.execute<
+    const { id, apiKey } = await this.commandBus.execute<
       CreateKnowledgeBaseCommand,
       CreateKnowledgeBaseResult
     >(
@@ -50,7 +52,12 @@ export class KnowledgeBaseMutationsResolver {
       }),
     );
 
-    return this.graphQLMapper.toCreatedResponseDto(result);
+    const knowledgeBaseViewModel = await this.assertViewModelExists.execute(id);
+    const dto = this.graphQLMapper.toResponseDto(
+      knowledgeBaseViewModel,
+    ) as KnowledgeBaseCreatedResponseDto;
+    dto.apiKey = apiKey;
+    return dto;
   }
 
   @Mutation(() => MutationResponseDto)

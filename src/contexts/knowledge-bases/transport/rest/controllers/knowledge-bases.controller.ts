@@ -58,7 +58,7 @@ export class KnowledgeBasesController {
   ): Promise<KnowledgeBaseCreatedRestResponseDto> {
     this.logger.log(`Creating knowledge base: ${dto.name}`);
 
-    const result = await this.commandBus.execute<
+    const { id, apiKey } = await this.commandBus.execute<
       CreateKnowledgeBaseCommand,
       CreateKnowledgeBaseResult
     >(
@@ -68,7 +68,12 @@ export class KnowledgeBasesController {
       }),
     );
 
-    return this.restMapper.toCreatedResponse(result);
+    const knowledgeBaseViewModel = await this.assertViewModelExists.execute(id);
+    const response = this.restMapper.toResponse(
+      knowledgeBaseViewModel,
+    ) as KnowledgeBaseCreatedRestResponseDto;
+    response.apiKey = apiKey;
+    return response;
   }
 
   @Get('me')

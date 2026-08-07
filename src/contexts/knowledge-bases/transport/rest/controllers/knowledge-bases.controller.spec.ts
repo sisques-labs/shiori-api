@@ -27,15 +27,21 @@ describe('KnowledgeBasesController', () => {
   it('createKnowledgeBase returns the plaintext apiKey', async () => {
     commandBus.execute.mockResolvedValue({
       id: 'kb-1',
+      apiKey: 'kb_plaintext',
+    });
+    assertViewModelExists.execute.mockResolvedValue({
+      id: 'kb-1',
       name: 'Docs',
       description: null,
-      apiKey: 'kb_plaintext',
+      apiKeyHash: 'a'.repeat(64),
       createdAt: new Date(),
-    });
+      updatedAt: new Date(),
+    } as any);
 
     const dto: CreateKnowledgeBaseDto = { name: 'Docs' };
     const result = await controller.createKnowledgeBase(dto);
 
+    expect(assertViewModelExists.execute).toHaveBeenCalledWith('kb-1');
     expect(result.apiKey).toBe('kb_plaintext');
     expect(result.id).toBe('kb-1');
   });

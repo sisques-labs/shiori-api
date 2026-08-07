@@ -47,7 +47,6 @@ describe('CreateKnowledgeBaseCommandHandler', () => {
     const result = await handler.execute(command);
 
     expect(result.apiKey).toMatch(/^kb_/);
-    expect(result.name).toBe('Docs');
     expect(result).not.toHaveProperty('apiKeyHash');
   });
 
