@@ -18,6 +18,7 @@ import { DocumentFindByCriteriaQueryHandler } from './application/queries/docume
 import { DocumentFindByIdQueryHandler } from './application/queries/document-find-by-id/document-find-by-id.handler';
 import { AssertDocumentViewModelExistsService } from './application/services/read/assert-document-view-model-exists/assert-document-view-model-exists.service';
 import { AssertDocumentExistsService } from './application/services/write/assert-document-exists/assert-document-exists.service';
+import { DeleteDocumentsByKnowledgeBaseService } from './application/services/write/delete-documents-by-knowledge-base/delete-documents-by-knowledge-base.service';
 import { ChunkBuilder } from './domain/builders/chunk.builder';
 import { DocumentBuilder } from './domain/builders/document.builder';
 import { CHUNK_WRITE_REPOSITORY } from './domain/repositories/write/chunk-write.repository';
@@ -60,6 +61,7 @@ const QUERY_HANDLERS = [
 const APPLICATION_SERVICES = [
   AssertDocumentExistsService,
   AssertDocumentViewModelExistsService,
+  DeleteDocumentsByKnowledgeBaseService,
 ];
 
 const DOMAIN_BUILDERS = [DocumentBuilder, ChunkBuilder];

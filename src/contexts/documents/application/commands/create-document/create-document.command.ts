@@ -1,13 +1,13 @@
 import { UuidValueObject } from '@sisques-labs/nestjs-kit';
 
+import { IDocumentPrimitives } from '@contexts/documents/domain/primitives/document.primitives';
 import { DocumentContentValueObject } from '@contexts/documents/domain/value-objects/document-content/document-content.value-object';
 import { DocumentTitleValueObject } from '@contexts/documents/domain/value-objects/document-title/document-title.value-object';
 
-export interface CreateDocumentCommandInput {
-  knowledgeBaseId: string;
-  title: string;
-  content: string;
-}
+export type CreateDocumentCommandInput = Pick<
+  IDocumentPrimitives,
+  'knowledgeBaseId' | 'title' | 'content'
+>;
 
 export class CreateDocumentCommand {
   public readonly knowledgeBaseId: UuidValueObject;
