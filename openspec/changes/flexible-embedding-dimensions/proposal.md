@@ -32,15 +32,21 @@ two Knowledge Bases in the same deployment to use different models at all.
   produces. No live provider call is made to discover a model's dimension.
   A new public query lets clients list this registry (e.g. to populate a
   model picker when creating/updating a Knowledge Base).
-- **One physical table per dimension.** Because pgvector requires a fixed
-  `vector(N)` column width, a single `embeddings` table can no longer serve
-  every model. `embeddings` switches to one table per distinct dimension
-  present in the registry (e.g. `embeddings_768`, `embeddings_1536`,
-  `embeddings_3072`) — never one table per model, so models that happen to
-  share a dimension share a table (disambiguated by the existing `model`
-  column). Adding a model whose dimension isn't covered yet requires a new
-  migration; this is an accepted, documented consequence of pgvector's
-  fixed-width columns, not solved generically by this change.
+- **Vector split into one physical table per dimension.** Because pgvector
+  requires a fixed `vector(N)` column width, a single column can no longer
+  serve every model. Rather than duplicating the whole `embeddings` row
+  shape per dimension, only the `embedding` column moves out: the existing
+  `embeddings` table keeps all metadata (`knowledge_base_id`, `document_id`,
+  `chunk_id`, `chunk_text`, `chunk_position`, `model`, timestamps)
+  unchanged, and a minimal new `embedding_vectors_{dimension}` table per
+  distinct dimension in the registry (e.g. `embedding_vectors_768`,
+  `embedding_vectors_1536`, `embedding_vectors_3072`) holds just the vector,
+  linked 1:1 by a cascading foreign key. Two models that happen to share a
+  dimension share a vector table (disambiguated by the existing `model`
+  column on `embeddings`). Adding a model whose dimension isn't covered yet
+  requires a new migration (a two-column table); this is an accepted,
+  documented consequence of pgvector's fixed-width columns, not solved
+  generically by this change.
 - **Blocking model change with re-embedding.** Changing a Knowledge Base's
   `embeddingModel` moves it into a `REEMBEDDING` status. While in that
   status, `retrieval`/`embeddings` search is rejected for that Knowledge
@@ -94,7 +100,7 @@ two Knowledge Bases in the same deployment to use different models at all.
 | `src/contexts/embeddings/` | Modify — model registry, table-per-dimension persistence + routing, new public `EmbeddingAvailableModels` query, `IEmbeddingPort` signature change, re-embed pipeline, new cross-context listener for model-change events |
 | `src/contexts/retrieval/` | Modify — reject search while the target Knowledge Base is `REEMBEDDING` |
 | `src/contexts/documents/` | Modify — expose an internal query to list all chunks for a Knowledge Base (not just per document), needed by the re-embed pipeline |
-| `src/database/migrations/` | New — add `embedding_model`/`embedding_status` to `knowledge_bases`; drop the old `embeddings` table; create `embeddings_{dimension}` tables for every dimension in the initial registry |
+| `src/database/migrations/` | New — add `embedding_model`/`embedding_status` to `knowledge_bases`; drop the `embedding` column from `embeddings` (metadata table otherwise unchanged); create `embedding_vectors_{dimension}` tables for every dimension in the initial registry |
 | `.env.example` | Modify — remove `EMBEDDINGS_MODEL` (now per-Knowledge-Base, not global); keep `EMBEDDINGS_BASE_URL`/`EMBEDDINGS_API_KEY` |
 
 ## Rollback Plan

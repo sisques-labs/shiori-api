@@ -66,27 +66,32 @@ Implemented in `infrastructure/adapters/knowledge-base-embedding-config.adapter.
 dispatching `knowledge-bases`' `KnowledgeBaseFindByIdQuery` (extended with
 `embeddingModel`/`embeddingStatus`) via `QueryBus`.
 
-Every embed/search entry point MUST resolve this first and derive
-`dimensions` via `EmbeddingModelRegistryService.getOrThrow(config.embeddingModel).dimensions`
-before touching any `embeddings_{dimension}` table.
+Only the embed pipeline and search resolve this port — deletes do not (see
+§4.2).
 
-## 4. Persistence — table-per-dimension
+## 4. Persistence — normalized metadata + per-dimension vector tables
 
 ### 4.1 Schema
 
-One table per distinct `dimensions` value in the registry:
-`embeddings_768`, `embeddings_1024`, `embeddings_1536`, `embeddings_3072`
-(initial set). Same columns as the previous single `embeddings` table.
-Replaces it entirely — the old `embeddings` table is dropped by migration
-(no production data to preserve).
+`embeddings` (existing table) is ALTERed, not replaced: its `embedding`
+column is dropped, everything else (`knowledge_base_id`, `document_id`,
+`chunk_id`, `chunk_text`, `chunk_position`, `model`, timestamps, both FKs,
+both non-vector indexes) is untouched.
 
-### 4.2 Repository interfaces (modified — dimension-parameterized)
+A new table per distinct `dimensions` value in the registry holds only the
+vector: `embedding_vectors_768`, `embedding_vectors_1024`,
+`embedding_vectors_1536`, `embedding_vectors_3072` (initial set). Each has
+exactly `embedding_id` (PK, FK to `embeddings.id`, `ON DELETE CASCADE`) and
+`embedding vector({dimension})`, plus its own HNSW cosine index.
+
+### 4.2 Repository interfaces (modified)
 
 ```ts
 export interface IEmbeddingWriteRepository {
   saveMany(embeddings: EmbeddingAggregate[], dimensions: number): Promise<void>;
-  deleteByDocumentId(documentId: string, dimensions: number): Promise<void>;
-  deleteByKnowledgeBaseId(knowledgeBaseId: string, dimensions: number): Promise<void>;
+  deleteByDocumentId(documentId: string): Promise<void>;
+  deleteByKnowledgeBaseId(knowledgeBaseId: string): Promise<void>;
+  deleteByKnowledgeBaseIdAndModel(knowledgeBaseId: string, model: string): Promise<void>;
 }
 
 export interface IEmbeddingReadRepository {
@@ -94,9 +99,27 @@ export interface IEmbeddingReadRepository {
 }
 ```
 
-TypeORM implementations route to the `Repository<...>` matching the given
-`dimensions`, built from one generated entity class per registry
-dimension (`createEmbeddingTypeOrmEntity(dimensions)`). An unregistered
+**`saveMany` MUST** write both the `embeddings` metadata rows and the
+matching `embedding_vectors_{dimensions}` rows inside one DB transaction,
+using each `EmbeddingAggregate`'s already-generated id to correlate them
+(no round trip needed).
+
+**`deleteByDocumentId`/`deleteByKnowledgeBaseId` MUST NOT** take a
+dimension — they delete from `embeddings` only, relying on
+`ON DELETE CASCADE` to remove the corresponding row from whichever
+`embedding_vectors_{dimension}` table actually holds it. This is why the
+three cleanup listeners (document deleted, document re-chunking, Knowledge
+Base deleted) need no cross-context knowledge of the Knowledge Base's
+current model at all.
+
+**`deleteByKnowledgeBaseIdAndModel` MUST** filter by the `model` column on
+`embeddings` (not by dimension) — used only by the re-embed pipeline (§5.2)
+to target one specific model's rows for a Knowledge Base while leaving
+another model's rows for the same tenant (new or old) untouched, even when
+both models happen to share a dimension and therefore a vector table.
+
+**`search` MUST** resolve `dimensions` to pick which
+`embedding_vectors_{dimension}` table to `JOIN` against; an unregistered
 dimension (should be unreachable if the registry and the migrated tables
 are kept in sync) throws `NoEmbeddingTableForDimensionException`.
 
@@ -126,20 +149,24 @@ onto the existing `embeddings` BullMQ queue.
 
 `ReembedKnowledgeBaseProcessor` MUST, inside its own
 `KnowledgeBaseContext.run(knowledgeBaseId, ...)` frame:
-1. Enumerate every document id for the Knowledge Base via
+1. `deleteByKnowledgeBaseIdAndModel(knowledgeBaseId, newModel)` — clears
+   any partial rows from a previously failed attempt at this same target
+   model, so every attempt is a clean rewrite.
+2. Enumerate every document id for the Knowledge Base via
    `IChunkSourcePort.findKnowledgeBaseDocumentIds(knowledgeBaseId)` (new
    port method, backed by a new internal `documents` query).
-2. For each document: fetch its chunks, embed them with `newModel`, save
-   into the new dimension's table.
-3. Only after every document succeeds: delete all of that Knowledge
-   Base's embeddings from the *previous* dimension's table
-   (`deleteByKnowledgeBaseId(knowledgeBaseId, previousDimensions)`).
-4. On full success: dispatch `CompleteKnowledgeBaseReembeddingCommand`.
-5. On any failure: dispatch `FailKnowledgeBaseReembeddingCommand` with the
-   error reason. MUST NOT delete the previous dimension's data in this
-   path — the Knowledge Base stays searchable-again-if-reverted (though
-   search itself stays blocked while `FAILED`, per `knowledge-bases`'
-   spec — this only affects the safety of the retry path).
+3. For each document: fetch its chunks, embed them with `newModel`, save
+   into the new dimension's table (rows tagged `model = newModel`).
+4. Only after every document succeeds:
+   `deleteByKnowledgeBaseIdAndModel(knowledgeBaseId, previousModel)` —
+   removes only the old model's rows; the just-written new-model rows are
+   untouched even if both models share a dimension/table.
+5. On full success: dispatch `CompleteKnowledgeBaseReembeddingCommand`.
+6. On any failure: dispatch `FailKnowledgeBaseReembeddingCommand` with the
+   error reason. MUST NOT delete the previous model's data in this path —
+   the Knowledge Base stays recoverable (though search itself stays
+   blocked while `FAILED`, per `knowledge-bases`' spec — this only affects
+   the safety of the retry path).
 
 ### 5.3 IEmbeddingPort (modified signature)
 
@@ -187,40 +214,43 @@ guard/auth required.
 **Given** KB1 configured with `nomic-embed-text` (768) and KB2 with
 `text-embedding-3-small` (1536)
 **When** each ingests a document and the embed pipeline runs
-**Then** KB1's vectors land in `embeddings_768` with `model = 'nomic-embed-text'`,
-KB2's land in `embeddings_1536` with `model = 'text-embedding-3-small'`.
+**Then** KB1's metadata rows in `embeddings` have `model = 'nomic-embed-text'`
+with their vectors in `embedding_vectors_768`; KB2's have
+`model = 'text-embedding-3-small'` with their vectors in
+`embedding_vectors_1536`.
 
 ### SC-03 Search blocked during re-embedding
 **Given** a Knowledge Base with `embeddingStatus = REEMBEDDING`
 **When** a search is attempted for that Knowledge Base
 **Then** HTTP 409, no provider call made, no table read.
 
-### SC-04 Re-embed moves all documents to the new table
+### SC-04 Re-embed moves all documents to the new model
 **Given** a Knowledge Base with 3 documents embedded under
 `text-embedding-3-small` (1536), then changed to `nomic-embed-text` (768)
 **When** the re-embed job completes
-**Then** `embeddings_768` has one row per chunk across all 3 documents with
-`model = 'nomic-embed-text'`, and `embeddings_1536` has zero rows for that
-Knowledge Base.
+**Then** `embeddings` has one metadata row per chunk across all 3 documents
+with `model = 'nomic-embed-text'` (their vectors in
+`embedding_vectors_768`), and zero rows with
+`model = 'text-embedding-3-small'` remain for that Knowledge Base.
 
-### SC-05 Re-embed failure leaves the old table intact
+### SC-05 Re-embed failure leaves the old model's data intact
 **Given** a re-embed job that fails partway (e.g. provider error on
 document 2 of 3)
 **When** the failure is handled
-**Then** `FailKnowledgeBaseReembeddingCommand` is dispatched,
-`embeddings_1536` (the previous dimension) still has all of the Knowledge
-Base's original rows untouched, and `embeddings_768` has only whatever
-partial rows were written before the failure (see proposal.md's Open
-Questions — "Partial re-embed retry" — for whether a retry needs to clear
-these first).
+**Then** `FailKnowledgeBaseReembeddingCommand` is dispatched, every row
+with `model = 'text-embedding-3-small'` (the previous model) for that
+Knowledge Base is untouched, and only whatever partial rows were written
+under `model = 'nomic-embed-text'` before the failure remain (see
+proposal.md's Open Questions — "Partial re-embed retry" — for the
+clear-before-retry behavior that makes the next attempt safe).
 
-### SC-06 Two Knowledge Bases with the same dimension share a table safely
+### SC-06 Two Knowledge Bases with the same dimension share a vector table safely
 **Given** KB1 on `text-embedding-3-small` and KB2 on `text-embedding-ada-002`
-(both 1536)
+(both 1536, so both land in `embedding_vectors_1536`)
 **When** both are searched
-**Then** each only ever sees its own `knowledge_base_id`'s rows in
-`embeddings_1536` — the existing tenant-scoping guarantee, unaffected by
-sharing a table across models.
+**Then** each only ever sees its own `knowledge_base_id`'s rows via the
+`embeddings` join — the existing tenant-scoping guarantee, unaffected by
+two models sharing a vector table.
 
 ### SC-07 Normal ingestion during a concurrent re-embed
 **Given** a Knowledge Base in `REEMBEDDING` (model change in progress) that
