@@ -10,6 +10,7 @@ import {
   IntegrationContext,
 } from '../../helpers/integration-bootstrap';
 import { truncateAll } from '../../helpers/db-reset';
+import { insertKnowledgeBaseFixture } from '../../helpers/fixtures';
 import { DocumentsModule } from '../../../src/contexts/documents/documents.module';
 import { DocumentBuilder } from '../../../src/contexts/documents/domain/builders/document.builder';
 import { DocumentStatusEnum } from '../../../src/contexts/documents/domain/enums/document-status.enum';
@@ -63,6 +64,7 @@ describe('DocumentTypeOrmReadRepository (integration)', () => {
     it('returns the view model', async () => {
       const knowledgeBaseId = randomUUID();
       const doc = buildDocument(knowledgeBaseId, { title: 'My Doc' });
+      await insertKnowledgeBaseFixture(ctx.dataSource, knowledgeBaseId);
 
       await knowledgeBaseContext.run(knowledgeBaseId, async () => {
         const saved = await writeRepo.save(doc);
@@ -77,6 +79,7 @@ describe('DocumentTypeOrmReadRepository (integration)', () => {
     it('does not resolve a document belonging to a different knowledge base', async () => {
       const kbOneId = randomUUID();
       const kbTwoId = randomUUID();
+      await insertKnowledgeBaseFixture(ctx.dataSource, kbOneId);
 
       const docInKbOne = await knowledgeBaseContext.run(kbOneId, () =>
         writeRepo.save(buildDocument(kbOneId, { title: 'KB One Doc' })),
@@ -94,6 +97,8 @@ describe('DocumentTypeOrmReadRepository (integration)', () => {
     it('scopes results to the current knowledge base only', async () => {
       const kbOneId = randomUUID();
       const kbTwoId = randomUUID();
+      await insertKnowledgeBaseFixture(ctx.dataSource, kbOneId);
+      await insertKnowledgeBaseFixture(ctx.dataSource, kbTwoId);
 
       await knowledgeBaseContext.run(kbOneId, () =>
         writeRepo.save(buildDocument(kbOneId, { title: 'KB One Doc' })),
@@ -112,6 +117,7 @@ describe('DocumentTypeOrmReadRepository (integration)', () => {
 
     it('applies a filter on status', async () => {
       const knowledgeBaseId = randomUUID();
+      await insertKnowledgeBaseFixture(ctx.dataSource, knowledgeBaseId);
 
       await knowledgeBaseContext.run(knowledgeBaseId, async () => {
         await writeRepo.save(
@@ -144,6 +150,7 @@ describe('DocumentTypeOrmReadRepository (integration)', () => {
 
     it('applies a sort on title', async () => {
       const knowledgeBaseId = randomUUID();
+      await insertKnowledgeBaseFixture(ctx.dataSource, knowledgeBaseId);
 
       await knowledgeBaseContext.run(knowledgeBaseId, async () => {
         await writeRepo.save(
@@ -163,6 +170,7 @@ describe('DocumentTypeOrmReadRepository (integration)', () => {
 
     it('paginates results', async () => {
       const knowledgeBaseId = randomUUID();
+      await insertKnowledgeBaseFixture(ctx.dataSource, knowledgeBaseId);
 
       await knowledgeBaseContext.run(knowledgeBaseId, async () => {
         for (let i = 0; i < 5; i++) {

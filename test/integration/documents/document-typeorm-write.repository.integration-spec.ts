@@ -5,6 +5,7 @@ import {
   IntegrationContext,
 } from '../../helpers/integration-bootstrap';
 import { truncateAll } from '../../helpers/db-reset';
+import { insertKnowledgeBaseFixture } from '../../helpers/fixtures';
 import { DocumentsModule } from '../../../src/contexts/documents/documents.module';
 import { DocumentBuilder } from '../../../src/contexts/documents/domain/builders/document.builder';
 import { DocumentStatusEnum } from '../../../src/contexts/documents/domain/enums/document-status.enum';
@@ -54,6 +55,7 @@ describe('DocumentTypeOrmWriteRepository (integration)', () => {
     it('round-trips all fields', async () => {
       const knowledgeBaseId = randomUUID();
       const doc = buildDocument(knowledgeBaseId, { title: 'My Doc' });
+      await insertKnowledgeBaseFixture(ctx.dataSource, knowledgeBaseId);
 
       await knowledgeBaseContext.run(knowledgeBaseId, async () => {
         const saved = await writeRepo.save(doc);
@@ -80,6 +82,7 @@ describe('DocumentTypeOrmWriteRepository (integration)', () => {
     it('does not resolve a document belonging to a different knowledge base', async () => {
       const kbOneId = randomUUID();
       const kbTwoId = randomUUID();
+      await insertKnowledgeBaseFixture(ctx.dataSource, kbOneId);
 
       const docInKbOne = await knowledgeBaseContext.run(kbOneId, () =>
         writeRepo.save(buildDocument(kbOneId, { title: 'KB One Doc' })),
@@ -97,6 +100,7 @@ describe('DocumentTypeOrmWriteRepository (integration)', () => {
     it('removes the record so findById returns null', async () => {
       const knowledgeBaseId = randomUUID();
       const doc = buildDocument(knowledgeBaseId);
+      await insertKnowledgeBaseFixture(ctx.dataSource, knowledgeBaseId);
 
       await knowledgeBaseContext.run(knowledgeBaseId, async () => {
         const saved = await writeRepo.save(doc);
