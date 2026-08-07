@@ -3,14 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 
 import {
-  EMBEDDING_PORT,
-  IEmbeddingPort,
-} from '@contexts/retrieval/application/ports/embedding.port';
-import {
-  EMBEDDING_READ_REPOSITORY,
-  IEmbeddingReadRepository,
+  EMBEDDING_SEARCH_PORT,
+  IEmbeddingSearchPort,
   IRetrievalSearchResult,
-} from '@contexts/retrieval/domain/repositories/read/embedding-read.repository';
+} from '@contexts/retrieval/application/ports/embedding-search.port';
 import { RetrievalConfig } from '@contexts/retrieval/infrastructure/config/retrieval.config';
 
 import { RetrievalSearchQuery } from './retrieval-search.query';
@@ -25,10 +21,8 @@ export class RetrievalSearchQueryHandler implements IQueryHandler<
   private readonly searchTopKMax: number;
 
   constructor(
-    @Inject(EMBEDDING_PORT)
-    private readonly embeddingPort: IEmbeddingPort,
-    @Inject(EMBEDDING_READ_REPOSITORY)
-    private readonly readRepository: IEmbeddingReadRepository,
+    @Inject(EMBEDDING_SEARCH_PORT)
+    private readonly embeddingSearchPort: IEmbeddingSearchPort,
     configService: ConfigService,
   ) {
     const config = configService.getOrThrow<RetrievalConfig>('retrieval');
@@ -46,7 +40,6 @@ export class RetrievalSearchQueryHandler implements IQueryHandler<
 
     this.logger.log(`Searching: topK=${topK}`);
 
-    const vector = await this.embeddingPort.embed(query.query);
-    return this.readRepository.search(vector, topK);
+    return this.embeddingSearchPort.search(query.query, topK);
   }
 }

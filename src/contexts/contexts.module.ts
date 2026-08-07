@@ -1,6 +1,7 @@
 import { DynamicModule, Module, Type } from '@nestjs/common';
 
 import { DocumentsModule } from './documents/documents.module';
+import { EmbeddingsModule } from './embeddings/embeddings.module';
 import { KnowledgeBasesModule } from './knowledge-bases/knowledge-bases.module';
 import { RetrievalModule } from './retrieval/retrieval.module';
 
@@ -9,6 +10,7 @@ import { RetrievalModule } from './retrieval/retrieval.module';
 const CONTEXT_MODULES: (DynamicModule | Type<unknown>)[] = [
   KnowledgeBasesModule,
   DocumentsModule,
+  EmbeddingsModule,
   RetrievalModule,
 ];
 

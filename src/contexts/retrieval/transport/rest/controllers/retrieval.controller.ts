@@ -16,7 +16,7 @@ import {
 } from '@nestjs/swagger';
 
 import { RetrievalSearchQuery } from '@contexts/retrieval/application/queries/retrieval-search/retrieval-search.query';
-import { IRetrievalSearchResult } from '@contexts/retrieval/domain/repositories/read/embedding-read.repository';
+import { IRetrievalSearchResult } from '@contexts/retrieval/application/ports/embedding-search.port';
 import { KnowledgeBaseApiKeyGuard } from '@core/tenancy/knowledge-base-api-key.guard';
 
 import { RetrievalSearchDto } from '../dtos/retrieval-search.dto';

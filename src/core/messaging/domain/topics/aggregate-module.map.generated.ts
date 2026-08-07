@@ -15,6 +15,6 @@
 export const AGGREGATE_MODULE_MAP: Readonly<Record<string, string>> = {
   ChunkAggregate: 'documents',
   DocumentAggregate: 'documents',
-  EmbeddingAggregate: 'retrieval',
+  EmbeddingAggregate: 'embeddings',
   KnowledgeBaseAggregate: 'knowledge-bases',
 };
