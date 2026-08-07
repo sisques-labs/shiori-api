@@ -3,7 +3,7 @@ import { QueryBus } from '@nestjs/cqrs';
 import { Args, Query, Resolver } from '@nestjs/graphql';
 
 import { RetrievalSearchQuery } from '@contexts/retrieval/application/queries/retrieval-search/retrieval-search.query';
-import { IRetrievalSearchResult } from '@contexts/retrieval/domain/repositories/read/embedding-read.repository';
+import { IRetrievalSearchResult } from '@contexts/retrieval/application/ports/embedding-search.port';
 import { KnowledgeBaseApiKeyGuard } from '@core/tenancy/knowledge-base-api-key.guard';
 
 import { RetrievalSearchGraphQLDto } from '../dtos/requests/retrieval-search-graphql.dto';

@@ -1,10 +1,9 @@
 import { ConfigService } from '@nestjs/config';
 
-import { IEmbeddingPort } from '@contexts/retrieval/application/ports/embedding.port';
 import {
-  IEmbeddingReadRepository,
+  IEmbeddingSearchPort,
   IRetrievalSearchResult,
-} from '@contexts/retrieval/domain/repositories/read/embedding-read.repository';
+} from '@contexts/retrieval/application/ports/embedding-search.port';
 
 import { RetrievalSearchQuery } from './retrieval-search.query';
 import { RetrievalSearchQueryHandler } from './retrieval-search.handler';
@@ -13,11 +12,7 @@ function buildHandler(config: {
   searchTopKDefault: number;
   searchTopKMax: number;
 }) {
-  const embeddingPort: jest.Mocked<IEmbeddingPort> = {
-    embed: jest.fn(),
-    embedBatch: jest.fn(),
-  };
-  const readRepository: jest.Mocked<IEmbeddingReadRepository> = {
+  const embeddingSearchPort: jest.Mocked<IEmbeddingSearchPort> = {
     search: jest.fn(),
   };
   const configService = {
@@ -25,12 +20,11 @@ function buildHandler(config: {
   } as unknown as ConfigService;
 
   const handler = new RetrievalSearchQueryHandler(
-    embeddingPort,
-    readRepository,
+    embeddingSearchPort,
     configService,
   );
 
-  return { handler, embeddingPort, readRepository };
+  return { handler, embeddingSearchPort };
 }
 
 const RESULT: IRetrievalSearchResult = {
@@ -42,63 +36,58 @@ const RESULT: IRetrievalSearchResult = {
 };
 
 describe('RetrievalSearchQueryHandler', () => {
-  it('embeds the query and delegates to the read repository', async () => {
-    const { handler, embeddingPort, readRepository } = buildHandler({
+  it('delegates to the embedding search port', async () => {
+    const { handler, embeddingSearchPort } = buildHandler({
       searchTopKDefault: 5,
       searchTopKMax: 20,
     });
-    embeddingPort.embed.mockResolvedValue([0.1, 0.2, 0.3]);
-    readRepository.search.mockResolvedValue([RESULT]);
+    embeddingSearchPort.search.mockResolvedValue([RESULT]);
 
     const result = await handler.execute(
       new RetrievalSearchQuery({ query: 'hello' }),
     );
 
-    expect(embeddingPort.embed).toHaveBeenCalledWith('hello');
-    expect(readRepository.search).toHaveBeenCalledWith([0.1, 0.2, 0.3], 5);
+    expect(embeddingSearchPort.search).toHaveBeenCalledWith('hello', 5);
     expect(result).toEqual([RESULT]);
   });
 
   it('uses searchTopKDefault when topK is omitted', async () => {
-    const { handler, embeddingPort, readRepository } = buildHandler({
+    const { handler, embeddingSearchPort } = buildHandler({
       searchTopKDefault: 7,
       searchTopKMax: 20,
     });
-    embeddingPort.embed.mockResolvedValue([]);
-    readRepository.search.mockResolvedValue([]);
+    embeddingSearchPort.search.mockResolvedValue([]);
 
     await handler.execute(new RetrievalSearchQuery({ query: 'hello' }));
 
-    expect(readRepository.search).toHaveBeenCalledWith([], 7);
+    expect(embeddingSearchPort.search).toHaveBeenCalledWith('hello', 7);
   });
 
   it('clamps a requested topK above searchTopKMax', async () => {
-    const { handler, embeddingPort, readRepository } = buildHandler({
+    const { handler, embeddingSearchPort } = buildHandler({
       searchTopKDefault: 5,
       searchTopKMax: 20,
     });
-    embeddingPort.embed.mockResolvedValue([]);
-    readRepository.search.mockResolvedValue([]);
+    embeddingSearchPort.search.mockResolvedValue([]);
 
     await handler.execute(
       new RetrievalSearchQuery({ query: 'hello', topK: 999 }),
     );
 
-    expect(readRepository.search).toHaveBeenCalledWith([], 20);
+    expect(embeddingSearchPort.search).toHaveBeenCalledWith('hello', 20);
   });
 
   it('honors a requested topK within bounds', async () => {
-    const { handler, embeddingPort, readRepository } = buildHandler({
+    const { handler, embeddingSearchPort } = buildHandler({
       searchTopKDefault: 5,
       searchTopKMax: 20,
     });
-    embeddingPort.embed.mockResolvedValue([]);
-    readRepository.search.mockResolvedValue([]);
+    embeddingSearchPort.search.mockResolvedValue([]);
 
     await handler.execute(
       new RetrievalSearchQuery({ query: 'hello', topK: 3 }),
     );
 
-    expect(readRepository.search).toHaveBeenCalledWith([], 3);
+    expect(embeddingSearchPort.search).toHaveBeenCalledWith('hello', 3);
   });
 });

@@ -10,8 +10,8 @@ import { Response } from 'express';
 import { GraphQLError } from 'graphql';
 
 import { resolveDocumentsExceptionStatus } from '@contexts/documents/transport/exceptions/documents-exception.filter';
+import { resolveEmbeddingsExceptionStatus } from '@contexts/embeddings/transport/exceptions/embeddings-exception.filter';
 import { resolveKnowledgeBasesExceptionStatus } from '@contexts/knowledge-bases/transport/exceptions/knowledge-bases-exception.filter';
-import { resolveRetrievalExceptionStatus } from '@contexts/retrieval/transport/exceptions/retrieval-exception.filter';
 
 /**
  * Per-context HTTP status resolvers, registered here as bounded contexts are
@@ -27,7 +27,7 @@ const EXCEPTION_STATUS_RESOLVERS: Array<
 > = [
   resolveKnowledgeBasesExceptionStatus,
   resolveDocumentsExceptionStatus,
-  resolveRetrievalExceptionStatus,
+  resolveEmbeddingsExceptionStatus,
 ];
 
 @Catch(BaseException)

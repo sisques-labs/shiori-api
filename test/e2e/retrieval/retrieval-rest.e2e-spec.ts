@@ -2,13 +2,13 @@ import { randomUUID } from 'crypto';
 
 import { createE2EApp, E2EContext } from '../../helpers/app-bootstrap';
 import { truncateAll } from '../../helpers/db-reset';
-import { EMBEDDING_PORT } from '../../../src/contexts/retrieval/application/ports/embedding.port';
-import { EmbeddingBuilder } from '../../../src/contexts/retrieval/domain/builders/embedding.builder';
-import { EMBEDDING_VECTOR_DIMENSIONS } from '../../../src/contexts/retrieval/domain/value-objects/embedding-vector/embedding-vector.value-object';
+import { EMBEDDING_PORT } from '../../../src/contexts/embeddings/application/ports/embedding.port';
+import { EmbeddingBuilder } from '../../../src/contexts/embeddings/domain/builders/embedding.builder';
+import { EMBEDDING_VECTOR_DIMENSIONS } from '../../../src/contexts/embeddings/domain/value-objects/embedding-vector/embedding-vector.value-object';
 import {
   EMBEDDING_WRITE_REPOSITORY,
   IEmbeddingWriteRepository,
-} from '../../../src/contexts/retrieval/domain/repositories/write/embedding-write.repository';
+} from '../../../src/contexts/embeddings/domain/repositories/write/embedding-write.repository';
 import { KnowledgeBaseContext } from '../../../src/core/tenancy/knowledge-base-context.service';
 
 /** A 1536-dim vector that is all zeros except the given index/value pairs. */

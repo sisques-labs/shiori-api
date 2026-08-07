@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { IRetrievalSearchResult } from '@contexts/retrieval/domain/repositories/read/embedding-read.repository';
+import { IRetrievalSearchResult } from '@contexts/retrieval/application/ports/embedding-search.port';
 import { RetrievalSearchResultResponseDto } from '@contexts/retrieval/transport/graphql/dtos/responses/retrieval-search-result.response.dto';
 
 @Injectable()
