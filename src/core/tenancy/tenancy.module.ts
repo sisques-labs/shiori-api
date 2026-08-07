@@ -19,24 +19,16 @@ import { KnowledgeBaseContext } from './knowledge-base-context.service';
  * precedent as `core/filters/base-exception.filter.ts` registering
  * `resolveKnowledgeBasesExceptionStatus`.
  */
-const PROVIDERS = [
-  KnowledgeBaseContext,
-  HashApiKeyService,
-  HashApiKeyCommandHandler,
-  KnowledgeBaseApiKeyGuard,
-  { provide: APP_INTERCEPTOR, useClass: KnowledgeBaseContextInterceptor },
-];
-
-const EXPORTS = [
-  KnowledgeBaseContext,
-  HashApiKeyService,
-  KnowledgeBaseApiKeyGuard,
-];
-
 @Global()
 @Module({
   imports: [CqrsModule],
-  providers: [...PROVIDERS],
-  exports: [...EXPORTS],
+  providers: [
+    KnowledgeBaseContext,
+    HashApiKeyService,
+    HashApiKeyCommandHandler,
+    KnowledgeBaseApiKeyGuard,
+    { provide: APP_INTERCEPTOR, useClass: KnowledgeBaseContextInterceptor },
+  ],
+  exports: [KnowledgeBaseContext, HashApiKeyService, KnowledgeBaseApiKeyGuard],
 })
 export class TenancyModule {}
