@@ -6,7 +6,6 @@ import { KnowledgeBaseDeletedEvent } from '@contexts/knowledge-bases/domain/even
 import { KnowledgeBaseDescriptionChangedEvent } from '@contexts/knowledge-bases/domain/events/field-changed/knowledge-base-description-changed/knowledge-base-description-changed.event';
 import { KnowledgeBaseNameChangedEvent } from '@contexts/knowledge-bases/domain/events/field-changed/knowledge-base-name-changed/knowledge-base-name-changed.event';
 import { KnowledgeBaseUpdatedEvent } from '@contexts/knowledge-bases/domain/events/knowledge-base-updated/knowledge-base-updated.event';
-import { IKnowledgeBaseEventData } from '@contexts/knowledge-bases/domain/events/interfaces/knowledge-base-event-data.interface';
 import { IKnowledgeBase } from '@contexts/knowledge-bases/domain/interfaces/knowledge-base.interface';
 import { IKnowledgeBasePrimitives } from '@contexts/knowledge-bases/domain/primitives/knowledge-base.primitives';
 import { KnowledgeBaseApiKeyHashValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-api-key-hash/knowledge-base-api-key-hash.value-object';
@@ -29,6 +28,8 @@ export class KnowledgeBaseAggregate extends BaseAggregate {
   }
 
   public create(): void {
+    const { apiKeyHash: _apiKeyHash, ...eventData } = this.toPrimitives();
+
     this.apply(
       new KnowledgeBaseCreatedEvent(
         {
@@ -38,7 +39,7 @@ export class KnowledgeBaseAggregate extends BaseAggregate {
           entityType: KnowledgeBaseAggregate.name,
           eventType: KnowledgeBaseCreatedEvent.name,
         },
-        this.toEventData(),
+        eventData,
       ),
     );
   }
@@ -53,6 +54,8 @@ export class KnowledgeBaseAggregate extends BaseAggregate {
       this.changeDescription(props.description);
     }
 
+    const { apiKeyHash: _apiKeyHash, ...eventData } = this.toPrimitives();
+
     this.apply(
       new KnowledgeBaseUpdatedEvent(
         {
@@ -62,7 +65,7 @@ export class KnowledgeBaseAggregate extends BaseAggregate {
           entityType: KnowledgeBaseAggregate.name,
           eventType: KnowledgeBaseUpdatedEvent.name,
         },
-        this.toEventData(),
+        eventData,
       ),
     );
   }
@@ -121,6 +124,8 @@ export class KnowledgeBaseAggregate extends BaseAggregate {
   }
 
   public delete(): void {
+    const { apiKeyHash: _apiKeyHash, ...eventData } = this.toPrimitives();
+
     this.apply(
       new KnowledgeBaseDeletedEvent(
         {
@@ -130,7 +135,7 @@ export class KnowledgeBaseAggregate extends BaseAggregate {
           entityType: KnowledgeBaseAggregate.name,
           eventType: KnowledgeBaseDeletedEvent.name,
         },
-        this.toEventData(),
+        eventData,
       ),
     );
   }
@@ -138,6 +143,8 @@ export class KnowledgeBaseAggregate extends BaseAggregate {
   public rotateApiKey(newHash: KnowledgeBaseApiKeyHashValueObject): void {
     this._apiKeyHash = newHash;
     this.touch();
+
+    const { apiKeyHash: _apiKeyHash, ...eventData } = this.toPrimitives();
 
     this.apply(
       new KnowledgeBaseApiKeyRotatedEvent(
@@ -148,19 +155,9 @@ export class KnowledgeBaseAggregate extends BaseAggregate {
           entityType: KnowledgeBaseAggregate.name,
           eventType: KnowledgeBaseApiKeyRotatedEvent.name,
         },
-        this.toEventData(),
+        eventData,
       ),
     );
-  }
-
-  private toEventData(): IKnowledgeBaseEventData {
-    return {
-      id: this._id.value,
-      name: this._name.value,
-      description: this._description?.value ?? null,
-      createdAt: this.createdAt.value,
-      updatedAt: this.updatedAt.value,
-    };
   }
 
   public toPrimitives(): IKnowledgeBasePrimitives {
