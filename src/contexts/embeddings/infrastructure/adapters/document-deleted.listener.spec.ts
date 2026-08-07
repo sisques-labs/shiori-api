@@ -34,7 +34,17 @@ describe('DocumentDeletedListener', () => {
         entityType: 'DocumentAggregate',
         eventType: 'DocumentDeletedEvent',
       },
-      { id: documentId, knowledgeBaseId, status: 'DELETED' },
+      {
+        id: documentId,
+        knowledgeBaseId,
+        title: 'Doc',
+        content: 'Content',
+        status: 'DELETED',
+        failureReason: null,
+        chunkCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
     );
 
     await listener.handle(event);

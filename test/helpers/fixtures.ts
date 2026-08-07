@@ -33,3 +33,16 @@ export async function insertDocumentFixture(
     ],
   );
 }
+
+export async function insertChunkFixture(
+  dataSource: DataSource,
+  id: string,
+  documentId: string,
+  knowledgeBaseId: string,
+  position = 0,
+): Promise<void> {
+  await dataSource.query(
+    `INSERT INTO "chunks" ("id", "document_id", "knowledge_base_id", "position", "text") VALUES ($1, $2, $3, $4, $5)`,
+    [id, documentId, knowledgeBaseId, position, `Fixture chunk ${id}`],
+  );
+}

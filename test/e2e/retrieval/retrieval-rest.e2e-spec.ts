@@ -2,6 +2,10 @@ import { randomUUID } from 'crypto';
 
 import { createE2EApp, E2EContext } from '../../helpers/app-bootstrap';
 import { truncateAll } from '../../helpers/db-reset';
+import {
+  insertChunkFixture,
+  insertDocumentFixture,
+} from '../../helpers/fixtures';
 import { EMBEDDING_PORT } from '../../../src/contexts/embeddings/application/ports/embedding.port';
 import { EmbeddingBuilder } from '../../../src/contexts/embeddings/domain/builders/embedding.builder';
 import { EMBEDDING_VECTOR_DIMENSIONS } from '../../../src/contexts/embeddings/domain/value-objects/embedding-vector/embedding-vector.value-object';
@@ -63,6 +67,7 @@ describe('Retrieval REST (e2e)', () => {
   function buildEmbedding(
     knowledgeBaseId: string,
     documentId: string,
+    chunkId: string,
     vector: number[],
     position: number,
     text: string,
@@ -71,7 +76,7 @@ describe('Retrieval REST (e2e)', () => {
       .withId(randomUUID())
       .withKnowledgeBaseId(knowledgeBaseId)
       .withDocumentId(documentId)
-      .withChunkId(randomUUID())
+      .withChunkId(chunkId)
       .withChunkText(text)
       .withChunkPosition(position)
       .withEmbedding(vector)
@@ -83,12 +88,20 @@ describe('Retrieval REST (e2e)', () => {
   it('POST /api/retrieval/search returns results ranked nearest-first, scoped to the caller’s knowledge base', async () => {
     const kb = await createKnowledgeBase();
     const documentId = randomUUID();
+    const chunkIdFar = randomUUID();
+    const chunkIdNear = randomUUID();
+    const chunkIdMid = randomUUID();
+    await insertDocumentFixture(ctx.dataSource, documentId, kb.id);
+    await insertChunkFixture(ctx.dataSource, chunkIdFar, documentId, kb.id, 2);
+    await insertChunkFixture(ctx.dataSource, chunkIdNear, documentId, kb.id, 0);
+    await insertChunkFixture(ctx.dataSource, chunkIdMid, documentId, kb.id, 1);
 
     await knowledgeBaseContext.run(kb.id, () =>
       embeddingWriteRepo.saveMany([
         buildEmbedding(
           kb.id,
           documentId,
+          chunkIdFar,
           buildVector({ 0: -1 }),
           2,
           'far chunk',
@@ -96,6 +109,7 @@ describe('Retrieval REST (e2e)', () => {
         buildEmbedding(
           kb.id,
           documentId,
+          chunkIdNear,
           buildVector({ 0: 1 }),
           0,
           'near chunk',
@@ -103,6 +117,7 @@ describe('Retrieval REST (e2e)', () => {
         buildEmbedding(
           kb.id,
           documentId,
+          chunkIdMid,
           buildVector({ 0: 1, 1: 1 }),
           1,
           'mid chunk',
@@ -131,12 +146,31 @@ describe('Retrieval REST (e2e)', () => {
   it('POST /api/retrieval/search does not leak results from another knowledge base', async () => {
     const kbOne = await createKnowledgeBase('KB One');
     const kbTwo = await createKnowledgeBase('KB Two');
+    const documentIdOne = randomUUID();
+    const documentIdTwo = randomUUID();
+    const chunkIdOne = randomUUID();
+    const chunkIdTwo = randomUUID();
+    await insertDocumentFixture(ctx.dataSource, documentIdOne, kbOne.id);
+    await insertDocumentFixture(ctx.dataSource, documentIdTwo, kbTwo.id);
+    await insertChunkFixture(
+      ctx.dataSource,
+      chunkIdOne,
+      documentIdOne,
+      kbOne.id,
+    );
+    await insertChunkFixture(
+      ctx.dataSource,
+      chunkIdTwo,
+      documentIdTwo,
+      kbTwo.id,
+    );
 
     await knowledgeBaseContext.run(kbOne.id, () =>
       embeddingWriteRepo.saveMany([
         buildEmbedding(
           kbOne.id,
-          randomUUID(),
+          documentIdOne,
+          chunkIdOne,
           buildVector({ 0: 1 }),
           0,
           'kb one chunk',
@@ -147,7 +181,8 @@ describe('Retrieval REST (e2e)', () => {
       embeddingWriteRepo.saveMany([
         buildEmbedding(
           kbTwo.id,
-          randomUUID(),
+          documentIdTwo,
+          chunkIdTwo,
           buildVector({ 0: 1 }),
           0,
           'kb two chunk',

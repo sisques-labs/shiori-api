@@ -14,6 +14,10 @@ function buildHandler() {
   };
   const readRepository: jest.Mocked<IEmbeddingReadRepository> = {
     search: jest.fn(),
+    findById: jest.fn(),
+    findByCriteria: jest.fn(),
+    save: jest.fn(),
+    delete: jest.fn(),
   };
 
   const handler = new EmbeddingSearchQueryHandler(

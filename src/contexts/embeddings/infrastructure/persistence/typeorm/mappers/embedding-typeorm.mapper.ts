@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { EmbeddingAggregate } from '@contexts/embeddings/domain/aggregates/embedding.aggregate';
 import { EmbeddingBuilder } from '@contexts/embeddings/domain/builders/embedding.builder';
+import { EmbeddingViewModel } from '@contexts/embeddings/domain/view-models/embedding.view-model';
 import { EmbeddingTypeOrmEntity } from '../entities/embedding.entity';
 
 @Injectable()
@@ -35,5 +36,19 @@ export class EmbeddingTypeOrmMapper {
     entity.model = p.model;
     entity.createdAt = p.createdAt;
     return entity;
+  }
+
+  public toViewModel(entity: EmbeddingTypeOrmEntity): EmbeddingViewModel {
+    return this.builder
+      .withId(entity.id)
+      .withKnowledgeBaseId(entity.knowledgeBaseId)
+      .withDocumentId(entity.documentId)
+      .withChunkId(entity.chunkId)
+      .withChunkText(entity.chunkText)
+      .withChunkPosition(entity.chunkPosition)
+      .withEmbedding(entity.embedding)
+      .withModel(entity.model)
+      .withCreatedAt(entity.createdAt)
+      .buildViewModel();
   }
 }
