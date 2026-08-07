@@ -34,8 +34,8 @@ export class DocumentQueriesResolver {
   ): Promise<DocumentResponseDto | null> {
     this.logger.log(`Finding document: ${id}`);
 
-    const vm = await this.assertViewModelExists.execute(id);
-    return this.graphQLMapper.toResponseDto(vm);
+    const documentViewModel = await this.assertViewModelExists.execute(id);
+    return this.graphQLMapper.toResponseDto(documentViewModel);
   }
 
   @Query(() => PaginatedDocumentResultDto)
@@ -61,7 +61,9 @@ export class DocumentQueriesResolver {
     >(new DocumentFindByCriteriaQuery({ criteria }));
 
     return {
-      items: result.items.map((vm) => this.graphQLMapper.toResponseDto(vm)),
+      items: result.items.map((documentViewModel) =>
+        this.graphQLMapper.toResponseDto(documentViewModel),
+      ),
       total: result.total,
       page: result.page,
       perPage: result.perPage,

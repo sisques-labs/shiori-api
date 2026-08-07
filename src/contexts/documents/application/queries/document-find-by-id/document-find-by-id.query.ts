@@ -1,6 +1,6 @@
-export interface DocumentFindByIdQueryInput {
-  id: string;
-}
+import { IDocumentPrimitives } from '@contexts/documents/domain/primitives/document.primitives';
+
+export type DocumentFindByIdQueryInput = Pick<IDocumentPrimitives, 'id'>;
 
 export class DocumentFindByIdQuery {
   public readonly id: string;

@@ -5,16 +5,16 @@ import { DocumentResponseDto } from '@contexts/documents/transport/graphql/dtos/
 
 @Injectable()
 export class DocumentGraphQLMapper {
-  toResponseDto(vm: DocumentViewModel): DocumentResponseDto {
+  toResponseDto(documentViewModel: DocumentViewModel): DocumentResponseDto {
     const dto = new DocumentResponseDto();
-    dto.id = vm.id;
-    dto.title = vm.title;
-    dto.content = vm.content;
-    dto.status = vm.status;
-    dto.failureReason = vm.failureReason;
-    dto.chunkCount = vm.chunkCount;
-    dto.createdAt = vm.createdAt;
-    dto.updatedAt = vm.updatedAt;
+    dto.id = documentViewModel.id;
+    dto.title = documentViewModel.title;
+    dto.content = documentViewModel.content;
+    dto.status = documentViewModel.status;
+    dto.failureReason = documentViewModel.failureReason;
+    dto.chunkCount = documentViewModel.chunkCount;
+    dto.createdAt = documentViewModel.createdAt;
+    dto.updatedAt = documentViewModel.updatedAt;
     return dto;
   }
 }

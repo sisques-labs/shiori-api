@@ -94,7 +94,9 @@ export class DocumentsController {
     >(new DocumentFindByCriteriaQuery({ criteria }));
 
     return new PaginatedResult(
-      result.items.map((vm) => this.restMapper.toResponse(vm)),
+      result.items.map((documentViewModel) =>
+        this.restMapper.toResponse(documentViewModel),
+      ),
       result.total,
       result.page,
       result.perPage,
@@ -110,8 +112,8 @@ export class DocumentsController {
   ): Promise<DocumentRestResponseDto> {
     this.logger.log(`Finding document: ${id}`);
 
-    const vm = await this.assertViewModelExists.execute(id);
-    return this.restMapper.toResponse(vm);
+    const documentViewModel = await this.assertViewModelExists.execute(id);
+    return this.restMapper.toResponse(documentViewModel);
   }
 
   @Patch(':id')
@@ -132,8 +134,8 @@ export class DocumentsController {
       new UpdateDocumentCommand({ id, title: dto.title, content: dto.content }),
     );
 
-    const vm = await this.assertViewModelExists.execute(id);
-    return this.restMapper.toResponse(vm);
+    const documentViewModel = await this.assertViewModelExists.execute(id);
+    return this.restMapper.toResponse(documentViewModel);
   }
 
   @Delete(':id')

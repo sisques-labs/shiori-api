@@ -15,8 +15,8 @@ export class AssertDocumentViewModelExistsService {
   ) {}
 
   async execute(id: string): Promise<DocumentViewModel> {
-    const vm = await this.readRepository.findById(id);
-    if (!vm) throw new DocumentNotFoundException(id);
-    return vm;
+    const documentViewModel = await this.readRepository.findById(id);
+    if (!documentViewModel) throw new DocumentNotFoundException(id);
+    return documentViewModel;
   }
 }
