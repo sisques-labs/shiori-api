@@ -10,12 +10,14 @@ import { RotateKnowledgeBaseApiKeyCommandHandler } from './application/commands/
 import { UpdateKnowledgeBaseCommandHandler } from './application/commands/update-knowledge-base/update-knowledge-base.handler';
 import { KnowledgeBaseFindByApiKeyHashQueryHandler } from './application/queries/knowledge-base-find-by-api-key-hash/knowledge-base-find-by-api-key-hash.handler';
 import { KnowledgeBaseFindByIdQueryHandler } from './application/queries/knowledge-base-find-by-id/knowledge-base-find-by-id.handler';
+import { HASH_API_KEY_PORT } from './application/ports/hash-api-key.port';
 import { AssertKnowledgeBaseViewModelExistsService } from './application/services/read/assert-knowledge-base-view-model-exists/assert-knowledge-base-view-model-exists.service';
 import { GenerateApiKeyService } from './application/services/write/generate-api-key/generate-api-key.service';
 import { AssertKnowledgeBaseExistsService } from './application/services/write/assert-knowledge-base-exists/assert-knowledge-base-exists.service';
 import { KnowledgeBaseBuilder } from './domain/builders/knowledge-base.builder';
 import { KNOWLEDGE_BASE_READ_REPOSITORY } from './domain/repositories/read/knowledge-base-read.repository';
 import { KNOWLEDGE_BASE_WRITE_REPOSITORY } from './domain/repositories/write/knowledge-base-write.repository';
+import { HashApiKeyAdapter } from './infrastructure/adapters/hash-api-key.adapter';
 import { KnowledgeBaseTypeOrmEntity } from './infrastructure/persistence/typeorm/entities/knowledge-base.entity';
 import { KnowledgeBaseTypeOrmMapper } from './infrastructure/persistence/typeorm/mappers/knowledge-base-typeorm.mapper';
 import { KnowledgeBaseTypeOrmReadRepository } from './infrastructure/persistence/typeorm/repositories/knowledge-base-typeorm-read.repository';
@@ -38,8 +40,6 @@ const QUERY_HANDLERS = [
   KnowledgeBaseFindByApiKeyHashQueryHandler,
 ];
 
-// HashApiKeyService comes from TenancyModule (imported below) — shared with
-// KnowledgeBaseApiKeyGuard, not re-declared here.
 const APPLICATION_SERVICES = [
   GenerateApiKeyService,
   AssertKnowledgeBaseExistsService,
@@ -59,6 +59,13 @@ const INFRASTRUCTURE_REPOSITORIES = [
     provide: KNOWLEDGE_BASE_READ_REPOSITORY,
     useClass: KnowledgeBaseTypeOrmReadRepository,
   },
+];
+
+// HashApiKeyAdapter reaches TenancyModule's HashApiKeyService via
+// HashApiKeyCommand, dispatched through the global CommandBus — never
+// injecting the service directly, same discipline as a cross-context port.
+const INFRASTRUCTURE_ADAPTERS = [
+  { provide: HASH_API_KEY_PORT, useClass: HashApiKeyAdapter },
 ];
 
 const REST_CONTROLLERS = [KnowledgeBasesController];
@@ -87,6 +94,7 @@ const GRAPHQL_PROVIDERS = [
     ...DOMAIN_BUILDERS,
     ...INFRASTRUCTURE_MAPPERS,
     ...INFRASTRUCTURE_REPOSITORIES,
+    ...INFRASTRUCTURE_ADAPTERS,
     ...REST_PROVIDERS,
     ...GRAPHQL_PROVIDERS,
   ],

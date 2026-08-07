@@ -7,6 +7,7 @@ import { KnowledgeBaseNameValueObject } from '@contexts/knowledge-bases/domain/v
 import { IKnowledgeBaseWriteRepository } from '@contexts/knowledge-bases/domain/repositories/write/knowledge-base-write.repository';
 import { AssertKnowledgeBaseExistsService } from '@contexts/knowledge-bases/application/services/write/assert-knowledge-base-exists/assert-knowledge-base-exists.service';
 import { GenerateApiKeyService } from '@contexts/knowledge-bases/application/services/write/generate-api-key/generate-api-key.service';
+import { IHashApiKeyPort } from '@contexts/knowledge-bases/application/ports/hash-api-key.port';
 import { HashApiKeyService } from '@core/tenancy/hash-api-key.service';
 import { DateValueObject } from '@sisques-labs/nestjs-kit';
 
@@ -19,6 +20,7 @@ describe('RotateKnowledgeBaseApiKeyCommandHandler', () => {
   let eventBus: jest.Mocked<EventBus>;
   let handler: RotateKnowledgeBaseApiKeyCommandHandler;
   let knowledgeBase: KnowledgeBaseAggregate;
+  let hashApiKey: IHashApiKeyPort;
   const oldHash = 'a'.repeat(64);
 
   beforeEach(() => {
@@ -42,12 +44,16 @@ describe('RotateKnowledgeBaseApiKeyCommandHandler', () => {
       execute: jest.fn().mockResolvedValue(knowledgeBase),
     } as any;
     eventBus = { publish: jest.fn(), publishAll: jest.fn() } as any;
+    hashApiKey = {
+      hash: (rawKey: string) =>
+        Promise.resolve(new HashApiKeyService().execute(rawKey)),
+    };
 
     handler = new RotateKnowledgeBaseApiKeyCommandHandler(
       writeRepository,
       assertExists,
       new GenerateApiKeyService(),
-      new HashApiKeyService(),
+      hashApiKey,
       eventBus,
     );
   });

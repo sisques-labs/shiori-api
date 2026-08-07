@@ -3,6 +3,7 @@ import { EventBus } from '@nestjs/cqrs';
 import { KnowledgeBaseBuilder } from '@contexts/knowledge-bases/domain/builders/knowledge-base.builder';
 import { IKnowledgeBaseWriteRepository } from '@contexts/knowledge-bases/domain/repositories/write/knowledge-base-write.repository';
 import { GenerateApiKeyService } from '@contexts/knowledge-bases/application/services/write/generate-api-key/generate-api-key.service';
+import { IHashApiKeyPort } from '@contexts/knowledge-bases/application/ports/hash-api-key.port';
 import { HashApiKeyService } from '@core/tenancy/hash-api-key.service';
 
 import { CreateKnowledgeBaseCommand } from './create-knowledge-base.command';
@@ -11,6 +12,7 @@ import { CreateKnowledgeBaseCommandHandler } from './create-knowledge-base.handl
 describe('CreateKnowledgeBaseCommandHandler', () => {
   let writeRepository: jest.Mocked<IKnowledgeBaseWriteRepository>;
   let eventBus: jest.Mocked<EventBus>;
+  let hashApiKey: IHashApiKeyPort;
   let handler: CreateKnowledgeBaseCommandHandler;
 
   beforeEach(() => {
@@ -21,12 +23,16 @@ describe('CreateKnowledgeBaseCommandHandler', () => {
       delete: jest.fn(),
     };
     eventBus = { publish: jest.fn(), publishAll: jest.fn() } as any;
+    hashApiKey = {
+      hash: (rawKey: string) =>
+        Promise.resolve(new HashApiKeyService().execute(rawKey)),
+    };
 
     handler = new CreateKnowledgeBaseCommandHandler(
       writeRepository,
       new KnowledgeBaseBuilder(),
       new GenerateApiKeyService(),
-      new HashApiKeyService(),
+      hashApiKey,
       eventBus,
     );
   });

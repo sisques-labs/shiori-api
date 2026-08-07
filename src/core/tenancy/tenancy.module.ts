@@ -1,6 +1,8 @@
 import { Global, Module } from '@nestjs/common';
+import { CqrsModule } from '@nestjs/cqrs';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 
+import { HashApiKeyCommandHandler } from './hash-api-key.command-handler';
 import { HashApiKeyService } from './hash-api-key.service';
 import { KnowledgeBaseApiKeyGuard } from './knowledge-base-api-key.guard';
 import { KnowledgeBaseContextInterceptor } from './knowledge-base-context.interceptor';
@@ -20,6 +22,7 @@ import { KnowledgeBaseContext } from './knowledge-base-context.service';
 const PROVIDERS = [
   KnowledgeBaseContext,
   HashApiKeyService,
+  HashApiKeyCommandHandler,
   KnowledgeBaseApiKeyGuard,
   { provide: APP_INTERCEPTOR, useClass: KnowledgeBaseContextInterceptor },
 ];
@@ -32,6 +35,7 @@ const EXPORTS = [
 
 @Global()
 @Module({
+  imports: [CqrsModule],
   providers: [...PROVIDERS],
   exports: [...EXPORTS],
 })

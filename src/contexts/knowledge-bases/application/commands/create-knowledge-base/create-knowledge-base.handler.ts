@@ -9,7 +9,10 @@ import {
   IKnowledgeBaseWriteRepository,
 } from '@contexts/knowledge-bases/domain/repositories/write/knowledge-base-write.repository';
 import { GenerateApiKeyService } from '@contexts/knowledge-bases/application/services/write/generate-api-key/generate-api-key.service';
-import { HashApiKeyService } from '@core/tenancy/hash-api-key.service';
+import {
+  HASH_API_KEY_PORT,
+  IHashApiKeyPort,
+} from '@contexts/knowledge-bases/application/ports/hash-api-key.port';
 
 import { CreateKnowledgeBaseCommand } from './create-knowledge-base.command';
 
@@ -31,7 +34,8 @@ export class CreateKnowledgeBaseCommandHandler
     private readonly writeRepository: IKnowledgeBaseWriteRepository,
     private readonly builder: KnowledgeBaseBuilder,
     private readonly generateApiKey: GenerateApiKeyService,
-    private readonly hashApiKey: HashApiKeyService,
+    @Inject(HASH_API_KEY_PORT)
+    private readonly hashApiKey: IHashApiKeyPort,
     eventBus: EventBus,
   ) {
     super(eventBus);
@@ -43,7 +47,7 @@ export class CreateKnowledgeBaseCommandHandler
     const now = new Date();
     const id = UuidValueObject.generate().value;
     const apiKey = await this.generateApiKey.execute();
-    const apiKeyHash = this.hashApiKey.execute(apiKey);
+    const apiKeyHash = await this.hashApiKey.hash(apiKey);
 
     const knowledgeBase = this.builder
       .withId(id)
