@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.0.3] - 2026-08-07
+
+### Bug Fixes
+- **docker:** Mount postgres volume at /var/lib/postgresql for pg18 compatibility (d0385e7)
 ## [0.0.2] - 2026-08-07
 
 ### Bug Fixes
