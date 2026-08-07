@@ -28,12 +28,15 @@ export class UpdateKnowledgeBaseCommandHandler
   }
 
   async execute(command: UpdateKnowledgeBaseCommand): Promise<void> {
-    const kb = await this.assertExists.execute(command.id);
+    const knowledgeBase = await this.assertExists.execute(command.id);
 
-    kb.update({ name: command.name, description: command.description });
+    knowledgeBase.update({
+      name: command.name,
+      description: command.description,
+    });
 
-    await this.writeRepository.save(kb);
-    await this.publishEvents(kb);
+    await this.writeRepository.save(knowledgeBase);
+    await this.publishEvents(knowledgeBase);
 
     this.logger.log(`KnowledgeBase updated: ${command.id.value}`);
   }

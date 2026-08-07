@@ -24,7 +24,8 @@ export class KnowledgeBaseQueriesResolver {
   ): Promise<KnowledgeBaseResponseDto> {
     this.logger.log(`Fetching knowledge base: ${knowledgeBaseId}`);
 
-    const vm = await this.assertViewModelExists.execute(knowledgeBaseId);
-    return this.graphQLMapper.toResponseDto(vm);
+    const knowledgeBaseViewModel =
+      await this.assertViewModelExists.execute(knowledgeBaseId);
+    return this.graphQLMapper.toResponseDto(knowledgeBaseViewModel);
   }
 }

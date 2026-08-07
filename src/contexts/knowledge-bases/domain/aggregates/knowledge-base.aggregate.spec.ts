@@ -21,54 +21,57 @@ function buildAggregate(): KnowledgeBaseAggregate {
 
 describe('KnowledgeBaseAggregate', () => {
   it('create() emits KnowledgeBaseCreated', () => {
-    const kb = buildAggregate();
-    kb.create();
+    const knowledgeBase = buildAggregate();
+    knowledgeBase.create();
 
-    const events = kb.getUncommittedEvents();
+    const events = knowledgeBase.getUncommittedEvents();
     expect(events).toHaveLength(1);
     expect(events[0].constructor.name).toBe('KnowledgeBaseCreatedEvent');
   });
 
   it('update() replaces name/description and emits KnowledgeBaseUpdated', () => {
-    const kb = buildAggregate();
-    kb.update({ name: new KnowledgeBaseNameValueObject('Docs v2') });
+    const knowledgeBase = buildAggregate();
+    knowledgeBase.update({ name: new KnowledgeBaseNameValueObject('Docs v2') });
 
-    expect(kb.name.value).toBe('Docs v2');
-    const events = kb.getUncommittedEvents();
+    expect(knowledgeBase.name.value).toBe('Docs v2');
+    const events = knowledgeBase.getUncommittedEvents();
     expect(events[events.length - 1].constructor.name).toBe(
       'KnowledgeBaseUpdatedEvent',
     );
   });
 
   it('update() with description replaces it', () => {
-    const kb = buildAggregate();
-    kb.update({
+    const knowledgeBase = buildAggregate();
+    knowledgeBase.update({
       description: new KnowledgeBaseDescriptionValueObject('Updated'),
     });
 
-    expect(kb.description?.value).toBe('Updated');
+    expect(knowledgeBase.description?.value).toBe('Updated');
   });
 
   it('delete() emits KnowledgeBaseDeleted', () => {
-    const kb = buildAggregate();
-    kb.delete();
+    const knowledgeBase = buildAggregate();
+    knowledgeBase.delete();
 
-    const events = kb.getUncommittedEvents();
+    const events = knowledgeBase.getUncommittedEvents();
     expect(events[events.length - 1].constructor.name).toBe(
       'KnowledgeBaseDeletedEvent',
     );
   });
 
   it('rotateApiKey() replaces the hash and emits KnowledgeBaseApiKeyRotated without leaking it', () => {
-    const kb = buildAggregate();
+    const knowledgeBase = buildAggregate();
     const newHash = new KnowledgeBaseApiKeyHashValueObject('b'.repeat(64));
 
-    kb.rotateApiKey(newHash);
+    knowledgeBase.rotateApiKey(newHash);
 
-    expect(kb.apiKeyHash.value).toBe('b'.repeat(64));
-    const events = kb.getUncommittedEvents();
+    expect(knowledgeBase.apiKeyHash.value).toBe('b'.repeat(64));
+    const events = knowledgeBase.getUncommittedEvents();
     const rotated = events[events.length - 1] as any;
     expect(rotated.constructor.name).toBe('KnowledgeBaseApiKeyRotatedEvent');
-    expect(rotated.data).toEqual({ id: kb.id.value, name: kb.name.value });
+    expect(rotated.data).toEqual({
+      id: knowledgeBase.id.value,
+      name: knowledgeBase.name.value,
+    });
   });
 });

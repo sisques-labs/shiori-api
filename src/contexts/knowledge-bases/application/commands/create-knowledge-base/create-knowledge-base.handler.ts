@@ -48,7 +48,7 @@ export class CreateKnowledgeBaseCommandHandler
     const apiKey = this.generateApiKey.execute();
     const apiKeyHash = this.hashApiKey.execute(apiKey);
 
-    const kb = this.builder
+    const knowledgeBase = this.builder
       .withId(id)
       .withName(command.name.value)
       .withDescription(command.description?.value ?? null)
@@ -57,17 +57,17 @@ export class CreateKnowledgeBaseCommandHandler
       .withUpdatedAt(now)
       .build();
 
-    kb.create();
+    knowledgeBase.create();
 
-    await this.writeRepository.save(kb);
-    await this.publishEvents(kb);
+    await this.writeRepository.save(knowledgeBase);
+    await this.publishEvents(knowledgeBase);
 
-    this.logger.log(`KnowledgeBase created: ${kb.id.value}`);
+    this.logger.log(`KnowledgeBase created: ${knowledgeBase.id.value}`);
 
     return {
-      id: kb.id.value,
-      name: kb.name.value,
-      description: kb.description?.value ?? null,
+      id: knowledgeBase.id.value,
+      name: knowledgeBase.name.value,
+      description: knowledgeBase.description?.value ?? null,
       apiKey,
       createdAt: now,
     };

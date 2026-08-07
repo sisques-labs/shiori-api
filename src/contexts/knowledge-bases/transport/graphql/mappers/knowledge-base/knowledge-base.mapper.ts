@@ -5,13 +5,15 @@ import { KnowledgeBaseResponseDto } from '@contexts/knowledge-bases/transport/gr
 
 @Injectable()
 export class KnowledgeBaseGraphQLMapper {
-  toResponseDto(vm: KnowledgeBaseViewModel): KnowledgeBaseResponseDto {
+  toResponseDto(
+    knowledgeBaseViewModel: KnowledgeBaseViewModel,
+  ): KnowledgeBaseResponseDto {
     const dto = new KnowledgeBaseResponseDto();
-    dto.id = vm.id;
-    dto.name = vm.name;
-    dto.description = vm.description;
-    dto.createdAt = vm.createdAt;
-    dto.updatedAt = vm.updatedAt;
+    dto.id = knowledgeBaseViewModel.id;
+    dto.name = knowledgeBaseViewModel.name;
+    dto.description = knowledgeBaseViewModel.description;
+    dto.createdAt = knowledgeBaseViewModel.createdAt;
+    dto.updatedAt = knowledgeBaseViewModel.updatedAt;
     return dto;
   }
 }

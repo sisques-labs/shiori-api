@@ -18,8 +18,8 @@ export class AssertKnowledgeBaseExistsService {
   async execute(
     id: KnowledgeBaseIdValueObject,
   ): Promise<KnowledgeBaseAggregate> {
-    const kb = await this.writeRepository.findById(id.value);
-    if (!kb) throw new KnowledgeBaseNotFoundException(id.value);
-    return kb;
+    const knowledgeBase = await this.writeRepository.findById(id.value);
+    if (!knowledgeBase) throw new KnowledgeBaseNotFoundException(id.value);
+    return knowledgeBase;
   }
 }

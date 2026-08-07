@@ -19,14 +19,14 @@ describe('KnowledgeBaseFindByIdQueryHandler', () => {
   });
 
   it('returns the view model when found', async () => {
-    const vm = { id: 'kb-1' } as any;
-    readRepository.findById.mockResolvedValue(vm);
+    const viewModel = { id: 'kb-1' } as any;
+    readRepository.findById.mockResolvedValue(viewModel);
 
     const result = await handler.execute(
       new KnowledgeBaseFindByIdQuery({ id: 'kb-1' }),
     );
 
-    expect(result).toBe(vm);
+    expect(result).toBe(viewModel);
   });
 
   it('returns null when not found', async () => {

@@ -45,10 +45,10 @@ describe('KnowledgeBaseTypeOrmMapper', () => {
 
   it('maps entity to view model', () => {
     const entity = buildEntity();
-    const vm = mapper.toViewModel(entity);
+    const viewModel = mapper.toViewModel(entity);
 
-    expect(vm.id).toBe(entity.id);
-    expect(vm.name).toBe(entity.name);
-    expect(vm.apiKeyHash).toBe(entity.apiKeyHash);
+    expect(viewModel.id).toBe(entity.id);
+    expect(viewModel.name).toBe(entity.name);
+    expect(viewModel.apiKeyHash).toBe(entity.apiKeyHash);
   });
 });

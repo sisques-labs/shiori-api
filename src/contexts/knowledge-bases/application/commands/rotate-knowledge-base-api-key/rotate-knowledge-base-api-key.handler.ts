@@ -48,15 +48,17 @@ export class RotateKnowledgeBaseApiKeyCommandHandler
   async execute(
     command: RotateKnowledgeBaseApiKeyCommand,
   ): Promise<RotateKnowledgeBaseApiKeyResult> {
-    const kb = await this.assertExists.execute(command.id);
+    const knowledgeBase = await this.assertExists.execute(command.id);
 
     const apiKey = this.generateApiKey.execute();
     const apiKeyHash = this.hashApiKey.execute(apiKey);
 
-    kb.rotateApiKey(new KnowledgeBaseApiKeyHashValueObject(apiKeyHash));
+    knowledgeBase.rotateApiKey(
+      new KnowledgeBaseApiKeyHashValueObject(apiKeyHash),
+    );
 
-    await this.writeRepository.save(kb);
-    await this.publishEvents(kb);
+    await this.writeRepository.save(knowledgeBase);
+    await this.publishEvents(knowledgeBase);
 
     this.logger.log(`KnowledgeBase API key rotated: ${command.id.value}`);
 

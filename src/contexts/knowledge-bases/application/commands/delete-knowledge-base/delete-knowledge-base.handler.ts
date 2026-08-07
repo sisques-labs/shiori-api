@@ -28,12 +28,12 @@ export class DeleteKnowledgeBaseCommandHandler
   }
 
   async execute(command: DeleteKnowledgeBaseCommand): Promise<void> {
-    const kb = await this.assertExists.execute(command.id);
+    const knowledgeBase = await this.assertExists.execute(command.id);
 
-    kb.delete();
+    knowledgeBase.delete();
 
-    await this.writeRepository.delete(kb.id.value);
-    await this.publishEvents(kb);
+    await this.writeRepository.delete(knowledgeBase.id.value);
+    await this.publishEvents(knowledgeBase);
 
     this.logger.log(`KnowledgeBase deleted: ${command.id.value}`);
   }

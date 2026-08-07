@@ -20,14 +20,14 @@ describe('KnowledgeBaseFindByApiKeyHashQueryHandler', () => {
   });
 
   it('returns the matching view model', async () => {
-    const vm = { id: 'kb-1' } as any;
-    readRepository.findByApiKeyHash.mockResolvedValue(vm);
+    const viewModel = { id: 'kb-1' } as any;
+    readRepository.findByApiKeyHash.mockResolvedValue(viewModel);
 
     const result = await handler.execute(
       new KnowledgeBaseFindByApiKeyHashQuery({ hash }),
     );
 
-    expect(result).toBe(vm);
+    expect(result).toBe(viewModel);
     expect(readRepository.findByApiKeyHash).toHaveBeenCalledWith(hash);
   });
 

@@ -5,13 +5,15 @@ import { KnowledgeBaseRestResponseDto } from '@contexts/knowledge-bases/transpor
 
 @Injectable()
 export class KnowledgeBaseRestMapper {
-  toResponse(vm: KnowledgeBaseViewModel): KnowledgeBaseRestResponseDto {
+  toResponse(
+    knowledgeBaseViewModel: KnowledgeBaseViewModel,
+  ): KnowledgeBaseRestResponseDto {
     const dto = new KnowledgeBaseRestResponseDto();
-    dto.id = vm.id;
-    dto.name = vm.name;
-    dto.description = vm.description;
-    dto.createdAt = vm.createdAt;
-    dto.updatedAt = vm.updatedAt;
+    dto.id = knowledgeBaseViewModel.id;
+    dto.name = knowledgeBaseViewModel.name;
+    dto.description = knowledgeBaseViewModel.description;
+    dto.createdAt = knowledgeBaseViewModel.createdAt;
+    dto.updatedAt = knowledgeBaseViewModel.updatedAt;
     return dto;
   }
 }

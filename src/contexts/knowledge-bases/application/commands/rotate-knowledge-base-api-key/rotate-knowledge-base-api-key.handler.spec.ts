@@ -18,12 +18,12 @@ describe('RotateKnowledgeBaseApiKeyCommandHandler', () => {
   let assertExists: jest.Mocked<AssertKnowledgeBaseExistsService>;
   let eventBus: jest.Mocked<EventBus>;
   let handler: RotateKnowledgeBaseApiKeyCommandHandler;
-  let kb: KnowledgeBaseAggregate;
+  let knowledgeBase: KnowledgeBaseAggregate;
   const oldHash = 'a'.repeat(64);
 
   beforeEach(() => {
     const now = new Date();
-    kb = new KnowledgeBaseAggregate({
+    knowledgeBase = new KnowledgeBaseAggregate({
       id: KnowledgeBaseIdValueObject.generate() as KnowledgeBaseIdValueObject,
       name: new KnowledgeBaseNameValueObject('Docs'),
       description: null,
@@ -38,7 +38,9 @@ describe('RotateKnowledgeBaseApiKeyCommandHandler', () => {
       save: jest.fn().mockResolvedValue(undefined),
       delete: jest.fn(),
     };
-    assertExists = { execute: jest.fn().mockResolvedValue(kb) } as any;
+    assertExists = {
+      execute: jest.fn().mockResolvedValue(knowledgeBase),
+    } as any;
     eventBus = { publish: jest.fn(), publishAll: jest.fn() } as any;
 
     handler = new RotateKnowledgeBaseApiKeyCommandHandler(
@@ -51,20 +53,26 @@ describe('RotateKnowledgeBaseApiKeyCommandHandler', () => {
   });
 
   it('replaces the hash and the old key no longer matches', async () => {
-    const command = new RotateKnowledgeBaseApiKeyCommand({ id: kb.id.value });
+    const command = new RotateKnowledgeBaseApiKeyCommand({
+      id: knowledgeBase.id.value,
+    });
 
     await handler.execute(command);
 
-    expect(kb.apiKeyHash.value).not.toBe(oldHash);
+    expect(knowledgeBase.apiKeyHash.value).not.toBe(oldHash);
   });
 
   it('returns the new plaintext key', async () => {
-    const command = new RotateKnowledgeBaseApiKeyCommand({ id: kb.id.value });
+    const command = new RotateKnowledgeBaseApiKeyCommand({
+      id: knowledgeBase.id.value,
+    });
     const hashService = new HashApiKeyService();
 
     const result = await handler.execute(command);
 
     expect(result.apiKey).toMatch(/^kb_/);
-    expect(kb.apiKeyHash.value).toBe(hashService.execute(result.apiKey));
+    expect(knowledgeBase.apiKeyHash.value).toBe(
+      hashService.execute(result.apiKey),
+    );
   });
 });

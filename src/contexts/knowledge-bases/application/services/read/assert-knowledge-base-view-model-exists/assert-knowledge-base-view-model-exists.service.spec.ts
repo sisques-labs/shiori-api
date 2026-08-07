@@ -19,10 +19,10 @@ describe('AssertKnowledgeBaseViewModelExistsService', () => {
   });
 
   it('returns the view model when found', async () => {
-    const vm = { id: 'kb-1' } as any;
-    readRepository.findById.mockResolvedValue(vm);
+    const viewModel = { id: 'kb-1' } as any;
+    readRepository.findById.mockResolvedValue(viewModel);
 
-    await expect(service.execute('kb-1')).resolves.toBe(vm);
+    await expect(service.execute('kb-1')).resolves.toBe(viewModel);
   });
 
   it('throws KnowledgeBaseNotFoundException when not found', async () => {

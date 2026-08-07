@@ -89,8 +89,9 @@ export class KnowledgeBasesController {
   ): Promise<KnowledgeBaseRestResponseDto> {
     this.logger.log(`Fetching knowledge base: ${knowledgeBaseId}`);
 
-    const vm = await this.assertViewModelExists.execute(knowledgeBaseId);
-    return this.restMapper.toResponse(vm);
+    const knowledgeBaseViewModel =
+      await this.assertViewModelExists.execute(knowledgeBaseId);
+    return this.restMapper.toResponse(knowledgeBaseViewModel);
   }
 
   @Patch('me')
@@ -113,8 +114,9 @@ export class KnowledgeBasesController {
       }),
     );
 
-    const vm = await this.assertViewModelExists.execute(knowledgeBaseId);
-    return this.restMapper.toResponse(vm);
+    const knowledgeBaseViewModel =
+      await this.assertViewModelExists.execute(knowledgeBaseId);
+    return this.restMapper.toResponse(knowledgeBaseViewModel);
   }
 
   @Delete('me')

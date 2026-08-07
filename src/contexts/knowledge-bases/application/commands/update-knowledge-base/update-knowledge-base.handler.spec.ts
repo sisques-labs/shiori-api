@@ -16,11 +16,11 @@ describe('UpdateKnowledgeBaseCommandHandler', () => {
   let assertExists: jest.Mocked<AssertKnowledgeBaseExistsService>;
   let eventBus: jest.Mocked<EventBus>;
   let handler: UpdateKnowledgeBaseCommandHandler;
-  let kb: KnowledgeBaseAggregate;
+  let knowledgeBase: KnowledgeBaseAggregate;
 
   beforeEach(() => {
     const now = new Date();
-    kb = new KnowledgeBaseAggregate({
+    knowledgeBase = new KnowledgeBaseAggregate({
       id: KnowledgeBaseIdValueObject.generate() as KnowledgeBaseIdValueObject,
       name: new KnowledgeBaseNameValueObject('Docs'),
       description: null,
@@ -35,7 +35,9 @@ describe('UpdateKnowledgeBaseCommandHandler', () => {
       save: jest.fn().mockResolvedValue(undefined),
       delete: jest.fn(),
     };
-    assertExists = { execute: jest.fn().mockResolvedValue(kb) } as any;
+    assertExists = {
+      execute: jest.fn().mockResolvedValue(knowledgeBase),
+    } as any;
     eventBus = { publish: jest.fn(), publishAll: jest.fn() } as any;
 
     handler = new UpdateKnowledgeBaseCommandHandler(
@@ -47,21 +49,23 @@ describe('UpdateKnowledgeBaseCommandHandler', () => {
 
   it('updates the name and saves', async () => {
     const command = new UpdateKnowledgeBaseCommand({
-      id: kb.id.value,
+      id: knowledgeBase.id.value,
       name: 'Docs v2',
     });
 
     await handler.execute(command);
 
-    expect(kb.name.value).toBe('Docs v2');
-    expect(writeRepository.save).toHaveBeenCalledWith(kb);
+    expect(knowledgeBase.name.value).toBe('Docs v2');
+    expect(writeRepository.save).toHaveBeenCalledWith(knowledgeBase);
   });
 
   it('propagates KnowledgeBaseNotFoundException from the assert service', async () => {
     const error = new Error('not found');
     assertExists.execute.mockRejectedValue(error);
 
-    const command = new UpdateKnowledgeBaseCommand({ id: kb.id.value });
+    const command = new UpdateKnowledgeBaseCommand({
+      id: knowledgeBase.id.value,
+    });
 
     await expect(handler.execute(command)).rejects.toThrow(error);
     expect(writeRepository.save).not.toHaveBeenCalled();

@@ -34,21 +34,21 @@ describe('KnowledgeBaseTypeOrmReadRepository', () => {
     const entity = buildEntity();
     rawRepo.findOne.mockResolvedValue(entity);
 
-    const vm = await repository.findById(entity.id);
+    const viewModel = await repository.findById(entity.id);
 
-    expect(vm?.id).toBe(entity.id);
+    expect(viewModel?.id).toBe(entity.id);
   });
 
   it('findByApiKeyHash() queries by the hash column', async () => {
     const entity = buildEntity();
     rawRepo.findOne.mockResolvedValue(entity);
 
-    const vm = await repository.findByApiKeyHash(entity.apiKeyHash);
+    const viewModel = await repository.findByApiKeyHash(entity.apiKeyHash);
 
     expect(rawRepo.findOne).toHaveBeenCalledWith({
       where: { apiKeyHash: entity.apiKeyHash },
     });
-    expect(vm?.apiKeyHash).toBe(entity.apiKeyHash);
+    expect(viewModel?.apiKeyHash).toBe(entity.apiKeyHash);
   });
 
   it('findByApiKeyHash() returns null for an unknown hash', async () => {

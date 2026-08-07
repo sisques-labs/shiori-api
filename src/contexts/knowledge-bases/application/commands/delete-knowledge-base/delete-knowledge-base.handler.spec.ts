@@ -16,11 +16,11 @@ describe('DeleteKnowledgeBaseCommandHandler', () => {
   let assertExists: jest.Mocked<AssertKnowledgeBaseExistsService>;
   let eventBus: jest.Mocked<EventBus>;
   let handler: DeleteKnowledgeBaseCommandHandler;
-  let kb: KnowledgeBaseAggregate;
+  let knowledgeBase: KnowledgeBaseAggregate;
 
   beforeEach(() => {
     const now = new Date();
-    kb = new KnowledgeBaseAggregate({
+    knowledgeBase = new KnowledgeBaseAggregate({
       id: KnowledgeBaseIdValueObject.generate() as KnowledgeBaseIdValueObject,
       name: new KnowledgeBaseNameValueObject('Docs'),
       description: null,
@@ -35,7 +35,9 @@ describe('DeleteKnowledgeBaseCommandHandler', () => {
       save: jest.fn(),
       delete: jest.fn().mockResolvedValue(undefined),
     };
-    assertExists = { execute: jest.fn().mockResolvedValue(kb) } as any;
+    assertExists = {
+      execute: jest.fn().mockResolvedValue(knowledgeBase),
+    } as any;
     eventBus = { publish: jest.fn(), publishAll: jest.fn() } as any;
 
     handler = new DeleteKnowledgeBaseCommandHandler(
@@ -46,18 +48,22 @@ describe('DeleteKnowledgeBaseCommandHandler', () => {
   });
 
   it('deletes the knowledge base', async () => {
-    const command = new DeleteKnowledgeBaseCommand({ id: kb.id.value });
+    const command = new DeleteKnowledgeBaseCommand({
+      id: knowledgeBase.id.value,
+    });
 
     await handler.execute(command);
 
-    expect(writeRepository.delete).toHaveBeenCalledWith(kb.id.value);
+    expect(writeRepository.delete).toHaveBeenCalledWith(knowledgeBase.id.value);
   });
 
   it('propagates KnowledgeBaseNotFoundException from the assert service', async () => {
     const error = new Error('not found');
     assertExists.execute.mockRejectedValue(error);
 
-    const command = new DeleteKnowledgeBaseCommand({ id: kb.id.value });
+    const command = new DeleteKnowledgeBaseCommand({
+      id: knowledgeBase.id.value,
+    });
 
     await expect(handler.execute(command)).rejects.toThrow(error);
     expect(writeRepository.delete).not.toHaveBeenCalled();

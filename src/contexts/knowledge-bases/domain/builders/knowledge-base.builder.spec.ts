@@ -23,20 +23,22 @@ describe('KnowledgeBaseBuilder', () => {
   }
 
   it('builds an aggregate with valid fields', () => {
-    const kb = withValidFields(builder).build();
-    expect(kb.name.value).toBe('Docs');
-    expect(kb.description).toBeNull();
+    const knowledgeBase = withValidFields(builder).build();
+    expect(knowledgeBase.name.value).toBe('Docs');
+    expect(knowledgeBase.description).toBeNull();
   });
 
   it('builds a view model with valid fields', () => {
-    const vm = withValidFields(builder).buildViewModel();
-    expect(vm.name).toBe('Docs');
-    expect(vm.description).toBeNull();
+    const viewModel = withValidFields(builder).buildViewModel();
+    expect(viewModel.name).toBe('Docs');
+    expect(viewModel.description).toBeNull();
   });
 
   it('includes description when provided', () => {
-    const kb = withValidFields(builder).withDescription('Internal').build();
-    expect(kb.description?.value).toBe('Internal');
+    const knowledgeBase = withValidFields(builder)
+      .withDescription('Internal')
+      .build();
+    expect(knowledgeBase.description?.value).toBe('Internal');
   });
 
   it('throws when name is missing', () => {

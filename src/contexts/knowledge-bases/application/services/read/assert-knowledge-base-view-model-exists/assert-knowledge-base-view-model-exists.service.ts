@@ -15,8 +15,8 @@ export class AssertKnowledgeBaseViewModelExistsService {
   ) {}
 
   async execute(id: string): Promise<KnowledgeBaseViewModel> {
-    const vm = await this.readRepository.findById(id);
-    if (!vm) throw new KnowledgeBaseNotFoundException(id);
-    return vm;
+    const viewModel = await this.readRepository.findById(id);
+    if (!viewModel) throw new KnowledgeBaseNotFoundException(id);
+    return viewModel;
   }
 }
