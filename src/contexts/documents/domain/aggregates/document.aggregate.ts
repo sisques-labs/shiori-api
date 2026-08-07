@@ -32,11 +32,12 @@ export class DocumentAggregate extends BaseAggregate {
   private _status: DocumentStatusValueObject;
   private _failureReason: DocumentFailureReasonValueObject | null;
   private _chunkCount: DocumentChunkCountValueObject;
-  private readonly assertNotChunking = new AssertDocumentNotChunkingService();
-  private readonly assertStatusTransition =
-    new AssertDocumentStatusTransitionService();
 
-  constructor(props: IDocument) {
+  constructor(
+    props: IDocument,
+    private readonly assertNotChunking: AssertDocumentNotChunkingService = new AssertDocumentNotChunkingService(),
+    private readonly assertStatusTransition: AssertDocumentStatusTransitionService = new AssertDocumentStatusTransitionService(),
+  ) {
     super(props.createdAt, props.updatedAt);
     this._id = props.id;
     this._knowledgeBaseId = props.knowledgeBaseId;
