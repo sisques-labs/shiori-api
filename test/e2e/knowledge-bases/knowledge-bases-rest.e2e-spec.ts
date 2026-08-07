@@ -17,14 +17,14 @@ describe('KnowledgeBases REST (e2e)', () => {
   });
 
   async function createKnowledgeBase(name = 'Docs') {
-    const res = await ctx.http().post('/api/knowledge-bases').send({ name });
+    const res = await ctx.http().post('/api/v1/knowledge-bases').send({ name });
     return res.body as { id: string; apiKey: string; name: string };
   }
 
   it('SC-01: POST / creates a knowledge base and returns the plaintext apiKey once', async () => {
     const res = await ctx
       .http()
-      .post('/api/knowledge-bases')
+      .post('/api/v1/knowledge-bases')
       .send({ name: 'Docs' });
 
     expect(res.status).toBe(201);
@@ -36,14 +36,14 @@ describe('KnowledgeBases REST (e2e)', () => {
   it('SC-04: POST / requires no X-API-Key header', async () => {
     const res = await ctx
       .http()
-      .post('/api/knowledge-bases')
+      .post('/api/v1/knowledge-bases')
       .send({ name: 'Docs' });
 
     expect(res.status).toBe(201);
   });
 
   it('SC-07: GET /me without a header returns 401', async () => {
-    const res = await ctx.http().get('/api/knowledge-bases/me');
+    const res = await ctx.http().get('/api/v1/knowledge-bases/me');
 
     expect(res.status).toBe(401);
   });
@@ -51,7 +51,7 @@ describe('KnowledgeBases REST (e2e)', () => {
   it('SC-06: GET /me with an unknown key returns 401', async () => {
     const res = await ctx
       .http()
-      .get('/api/knowledge-bases/me')
+      .get('/api/v1/knowledge-bases/me')
       .set('X-API-Key', 'kb_unknown-key-value');
 
     expect(res.status).toBe(401);
@@ -62,7 +62,7 @@ describe('KnowledgeBases REST (e2e)', () => {
 
     const res = await ctx
       .http()
-      .get('/api/knowledge-bases/me')
+      .get('/api/v1/knowledge-bases/me')
       .set('X-API-Key', created.apiKey);
 
     expect(res.status).toBe(200);
@@ -76,7 +76,7 @@ describe('KnowledgeBases REST (e2e)', () => {
 
     const res = await ctx
       .http()
-      .patch('/api/knowledge-bases/me')
+      .patch('/api/v1/knowledge-bases/me')
       .set('X-API-Key', created.apiKey)
       .send({ name: 'Docs v2' });
 
@@ -89,13 +89,13 @@ describe('KnowledgeBases REST (e2e)', () => {
 
     const deleteRes = await ctx
       .http()
-      .delete('/api/knowledge-bases/me')
+      .delete('/api/v1/knowledge-bases/me')
       .set('X-API-Key', created.apiKey);
     expect(deleteRes.status).toBe(204);
 
     const getRes = await ctx
       .http()
-      .get('/api/knowledge-bases/me')
+      .get('/api/v1/knowledge-bases/me')
       .set('X-API-Key', created.apiKey);
     expect(getRes.status).toBe(401);
   });
@@ -105,7 +105,7 @@ describe('KnowledgeBases REST (e2e)', () => {
 
     const rotateRes = await ctx
       .http()
-      .post('/api/knowledge-bases/me/rotate-api-key')
+      .post('/api/v1/knowledge-bases/me/rotate-api-key')
       .set('X-API-Key', created.apiKey);
     expect(rotateRes.status).toBe(200);
     const newKey = rotateRes.body.apiKey as string;
@@ -114,13 +114,13 @@ describe('KnowledgeBases REST (e2e)', () => {
 
     const oldKeyRes = await ctx
       .http()
-      .get('/api/knowledge-bases/me')
+      .get('/api/v1/knowledge-bases/me')
       .set('X-API-Key', created.apiKey);
     expect(oldKeyRes.status).toBe(401);
 
     const newKeyRes = await ctx
       .http()
-      .get('/api/knowledge-bases/me')
+      .get('/api/v1/knowledge-bases/me')
       .set('X-API-Key', newKey);
     expect(newKeyRes.status).toBe(200);
   });
