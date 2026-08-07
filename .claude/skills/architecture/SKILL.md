@@ -167,6 +167,8 @@ and `filter.field` interpolated straight into SQL with zero validation.
   in `@sisques-labs/nestjs-kit/messaging` and `/metrics` — see that package's
   docs, not a local README.
 - `.claude/skills/architecture/assets/aggregate-template.ts.template` — aggregate starter
-- Once the first bounded context exists, add its `README.md` at
-  `src/contexts/{context}/README.md` and reference it here as the canonical
-  example for the next context.
+- `src/contexts/knowledge-bases/README.md` — the first bounded context;
+  canonical example for the next one. Note its two deliberate deviations
+  from this template (no `findByCriteria` transport, no MCP tools) are
+  context-specific, not a pattern to copy by default — read the rationale
+  before repeating them.
