@@ -11,12 +11,13 @@ event forwarding, REST (Swagger) + GraphQL (Apollo) transports, structured
 logging (`@sisques-labs/nestjs-kit` + Winston), Sentry, Prometheus metrics,
 an MCP endpoint, health checks, and production-ready CI/CD workflows.
 
-At this stage the service still ships with **zero bounded contexts**
-(`src/contexts/`): the cross-cutting infrastructure (`src/core/`,
-`src/support/`) is in place, and the first bounded context to land here will
-be Shiori's own RAG domain (ingestion, indexing, retrieval, generation). See
-the `architecture` skill in `.claude/skills/architecture/SKILL.md` for the
-layer rules every context — including that first one — must follow.
+The first bounded context, **`knowledge-bases`** (`src/contexts/knowledge-bases/`),
+has landed: it's the tenant root every future RAG context scopes its data
+to, authenticated by a per-knowledge-base API key. See its
+[README](src/contexts/knowledge-bases/README.md) for the auth flow and the
+reusable tenancy mechanism (`src/core/tenancy/`) it introduces. See the
+`architecture` skill in `.claude/skills/architecture/SKILL.md` for the layer
+rules every context — including this one — must follow.
 
 ## What's included
 
@@ -36,9 +37,9 @@ layer rules every context — including that first one — must follow.
 
 ## Roadmap
 
-Shiori's RAG domain is not implemented yet. Planned bounded contexts include
-document ingestion, chunking/embedding, vector retrieval, and generation —
-tracked as they're proposed under `openspec/`.
+`knowledge-bases` (tenancy) is done. Next up: `documents` (ingestion,
+chunking) and `retrieval` (embeddings, vector search via pgvector) — tracked
+as they're proposed under `openspec/`.
 
 ## Local development
 

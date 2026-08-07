@@ -45,6 +45,9 @@ const baseEnvSchema = z
       .optional(),
     KAFKA_SASL_USERNAME: z.string().optional(),
     KAFKA_SASL_PASSWORD: z.string().optional(),
+    REDIS_HOST: z.string().optional(),
+    REDIS_PORT: z.string().optional(),
+    REDIS_PASSWORD: z.string().optional(),
   })
   .superRefine((env, ctx) => {
     if (env.KAFKA_ENABLED === 'true' && !env.KAFKA_BROKERS?.trim()) {
