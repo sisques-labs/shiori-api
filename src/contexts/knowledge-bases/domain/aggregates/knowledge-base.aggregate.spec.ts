@@ -49,6 +49,53 @@ describe('KnowledgeBaseAggregate', () => {
     expect(knowledgeBase.description?.value).toBe('Updated');
   });
 
+  it('update() emits KnowledgeBaseNameChanged when the name changes', () => {
+    const knowledgeBase = buildAggregate();
+    knowledgeBase.update({ name: new KnowledgeBaseNameValueObject('Docs v2') });
+
+    const events = knowledgeBase.getUncommittedEvents();
+    const nameChanged = events.find(
+      (event) => event.constructor.name === 'KnowledgeBaseNameChangedEvent',
+    ) as any;
+    expect(nameChanged).toBeDefined();
+    expect(nameChanged.data).toEqual({
+      id: knowledgeBase.id.value,
+      oldValue: 'Docs',
+      newValue: 'Docs v2',
+    });
+  });
+
+  it('update() does not emit KnowledgeBaseNameChanged when the name is unchanged', () => {
+    const knowledgeBase = buildAggregate();
+    knowledgeBase.update({ name: new KnowledgeBaseNameValueObject('Docs') });
+
+    const events = knowledgeBase.getUncommittedEvents();
+    expect(
+      events.some(
+        (event) => event.constructor.name === 'KnowledgeBaseNameChangedEvent',
+      ),
+    ).toBe(false);
+  });
+
+  it('update() emits KnowledgeBaseDescriptionChanged when the description changes', () => {
+    const knowledgeBase = buildAggregate();
+    knowledgeBase.update({
+      description: new KnowledgeBaseDescriptionValueObject('Updated'),
+    });
+
+    const events = knowledgeBase.getUncommittedEvents();
+    const descriptionChanged = events.find(
+      (event) =>
+        event.constructor.name === 'KnowledgeBaseDescriptionChangedEvent',
+    ) as any;
+    expect(descriptionChanged).toBeDefined();
+    expect(descriptionChanged.data).toEqual({
+      id: knowledgeBase.id.value,
+      oldValue: null,
+      newValue: 'Updated',
+    });
+  });
+
   it('delete() emits KnowledgeBaseDeleted', () => {
     const knowledgeBase = buildAggregate();
     knowledgeBase.delete();
@@ -72,6 +119,10 @@ describe('KnowledgeBaseAggregate', () => {
     expect(rotated.data).toEqual({
       id: knowledgeBase.id.value,
       name: knowledgeBase.name.value,
+      description: knowledgeBase.description?.value ?? null,
+      createdAt: knowledgeBase.createdAt.value,
+      updatedAt: knowledgeBase.updatedAt.value,
     });
+    expect(rotated.data).not.toHaveProperty('apiKeyHash');
   });
 });

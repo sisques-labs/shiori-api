@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { IBaseService } from '@sisques-labs/nestjs-kit';
 
 import { KnowledgeBaseAggregate } from '@contexts/knowledge-bases/domain/aggregates/knowledge-base.aggregate';
 import { KnowledgeBaseNotFoundException } from '@contexts/knowledge-bases/domain/exceptions/knowledge-base-not-found.exception';
@@ -9,7 +10,7 @@ import {
 import { KnowledgeBaseIdValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-id/knowledge-base-id.value-object';
 
 @Injectable()
-export class AssertKnowledgeBaseExistsService {
+export class AssertKnowledgeBaseExistsService implements IBaseService {
   constructor(
     @Inject(KNOWLEDGE_BASE_WRITE_REPOSITORY)
     private readonly writeRepository: IKnowledgeBaseWriteRepository,

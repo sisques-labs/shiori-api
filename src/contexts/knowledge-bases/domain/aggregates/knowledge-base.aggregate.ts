@@ -3,7 +3,10 @@ import { BaseAggregate } from '@sisques-labs/nestjs-kit';
 import { KnowledgeBaseApiKeyRotatedEvent } from '@contexts/knowledge-bases/domain/events/knowledge-base-api-key-rotated/knowledge-base-api-key-rotated.event';
 import { KnowledgeBaseCreatedEvent } from '@contexts/knowledge-bases/domain/events/knowledge-base-created/knowledge-base-created.event';
 import { KnowledgeBaseDeletedEvent } from '@contexts/knowledge-bases/domain/events/knowledge-base-deleted/knowledge-base-deleted.event';
+import { KnowledgeBaseDescriptionChangedEvent } from '@contexts/knowledge-bases/domain/events/field-changed/knowledge-base-description-changed/knowledge-base-description-changed.event';
+import { KnowledgeBaseNameChangedEvent } from '@contexts/knowledge-bases/domain/events/field-changed/knowledge-base-name-changed/knowledge-base-name-changed.event';
 import { KnowledgeBaseUpdatedEvent } from '@contexts/knowledge-bases/domain/events/knowledge-base-updated/knowledge-base-updated.event';
+import { IKnowledgeBaseEventData } from '@contexts/knowledge-bases/domain/events/interfaces/knowledge-base-event-data.interface';
 import { IKnowledgeBase } from '@contexts/knowledge-bases/domain/interfaces/knowledge-base.interface';
 import { IKnowledgeBasePrimitives } from '@contexts/knowledge-bases/domain/primitives/knowledge-base.primitives';
 import { KnowledgeBaseApiKeyHashValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-api-key-hash/knowledge-base-api-key-hash.value-object';
@@ -40,17 +43,15 @@ export class KnowledgeBaseAggregate extends BaseAggregate {
     );
   }
 
-  public update(props: {
-    name?: KnowledgeBaseNameValueObject;
-    description?: KnowledgeBaseDescriptionValueObject | null;
-  }): void {
+  public update(
+    props: Omit<Partial<IKnowledgeBase>, 'id' | 'createdAt' | 'updatedAt'>,
+  ): void {
     if (props.name !== undefined) {
-      this._name = props.name;
+      this.changeName(props.name);
     }
     if (props.description !== undefined) {
-      this._description = props.description;
+      this.changeDescription(props.description);
     }
-    this.touch();
 
     this.apply(
       new KnowledgeBaseUpdatedEvent(
@@ -62,6 +63,59 @@ export class KnowledgeBaseAggregate extends BaseAggregate {
           eventType: KnowledgeBaseUpdatedEvent.name,
         },
         this.toEventData(),
+      ),
+    );
+  }
+
+  private changeName(newName: KnowledgeBaseNameValueObject): void {
+    if (this._name.equals(newName)) return;
+
+    const oldValue = this._name.value;
+    this._name = newName;
+    this.touch();
+
+    this.apply(
+      new KnowledgeBaseNameChangedEvent(
+        {
+          aggregateRootId: this._id.value,
+          aggregateRootType: KnowledgeBaseAggregate.name,
+          entityId: this._id.value,
+          entityType: KnowledgeBaseAggregate.name,
+          eventType: KnowledgeBaseNameChangedEvent.name,
+        },
+        {
+          id: this._id.value,
+          oldValue,
+          newValue: newName.value,
+        },
+      ),
+    );
+  }
+
+  private changeDescription(
+    newDescription: KnowledgeBaseDescriptionValueObject | null,
+  ): void {
+    const oldValue = this._description?.value ?? null;
+    const newValue = newDescription?.value ?? null;
+    if (oldValue === newValue) return;
+
+    this._description = newDescription;
+    this.touch();
+
+    this.apply(
+      new KnowledgeBaseDescriptionChangedEvent(
+        {
+          aggregateRootId: this._id.value,
+          aggregateRootType: KnowledgeBaseAggregate.name,
+          entityId: this._id.value,
+          entityType: KnowledgeBaseAggregate.name,
+          eventType: KnowledgeBaseDescriptionChangedEvent.name,
+        },
+        {
+          id: this._id.value,
+          oldValue,
+          newValue: newDescription?.value ?? null,
+        },
       ),
     );
   }
@@ -99,10 +153,13 @@ export class KnowledgeBaseAggregate extends BaseAggregate {
     );
   }
 
-  private toEventData() {
+  private toEventData(): IKnowledgeBaseEventData {
     return {
       id: this._id.value,
       name: this._name.value,
+      description: this._description?.value ?? null,
+      createdAt: this.createdAt.value,
+      updatedAt: this.updatedAt.value,
     };
   }
 

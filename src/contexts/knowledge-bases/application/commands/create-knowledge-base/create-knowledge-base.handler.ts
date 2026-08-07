@@ -45,7 +45,7 @@ export class CreateKnowledgeBaseCommandHandler
   ): Promise<CreateKnowledgeBaseResult> {
     const now = new Date();
     const id = UuidValueObject.generate().value;
-    const apiKey = this.generateApiKey.execute();
+    const apiKey = await this.generateApiKey.execute();
     const apiKeyHash = this.hashApiKey.execute(apiKey);
 
     const knowledgeBase = this.builder

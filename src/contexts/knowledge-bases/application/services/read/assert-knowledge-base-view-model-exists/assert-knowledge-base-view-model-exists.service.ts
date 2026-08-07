@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { IBaseService } from '@sisques-labs/nestjs-kit';
 
 import { KnowledgeBaseNotFoundException } from '@contexts/knowledge-bases/domain/exceptions/knowledge-base-not-found.exception';
 import {
@@ -8,7 +9,7 @@ import {
 import { KnowledgeBaseViewModel } from '@contexts/knowledge-bases/domain/view-models/knowledge-base.view-model';
 
 @Injectable()
-export class AssertKnowledgeBaseViewModelExistsService {
+export class AssertKnowledgeBaseViewModelExistsService implements IBaseService {
   constructor(
     @Inject(KNOWLEDGE_BASE_READ_REPOSITORY)
     private readonly readRepository: IKnowledgeBaseReadRepository,

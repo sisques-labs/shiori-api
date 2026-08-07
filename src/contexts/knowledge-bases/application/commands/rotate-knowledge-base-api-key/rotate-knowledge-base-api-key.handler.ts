@@ -50,7 +50,7 @@ export class RotateKnowledgeBaseApiKeyCommandHandler
   ): Promise<RotateKnowledgeBaseApiKeyResult> {
     const knowledgeBase = await this.assertExists.execute(command.id);
 
-    const apiKey = this.generateApiKey.execute();
+    const apiKey = await this.generateApiKey.execute();
     const apiKeyHash = this.hashApiKey.execute(apiKey);
 
     knowledgeBase.rotateApiKey(
