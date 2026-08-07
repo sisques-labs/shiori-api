@@ -1,5 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { IBaseService, PaginatedResult } from '@sisques-labs/nestjs-kit';
+import {
+  Criteria,
+  IBaseService,
+  PaginatedResult,
+} from '@sisques-labs/nestjs-kit';
 
 import { DocumentAggregate } from '@contexts/documents/domain/aggregates/document.aggregate';
 import {
@@ -10,10 +14,6 @@ import {
   CHUNK_WRITE_REPOSITORY,
   IChunkWriteRepository,
 } from '@contexts/documents/domain/repositories/write/chunk-write.repository';
-import {
-  DOCUMENT_BATCH_FINDER_PORT,
-  IDocumentBatchFinderPort,
-} from '@contexts/documents/application/ports/document-batch-finder.port';
 
 const DELETE_BATCH_SIZE = 100;
 
@@ -27,8 +27,6 @@ export class DeleteDocumentsByKnowledgeBaseService implements IBaseService<
   );
 
   constructor(
-    @Inject(DOCUMENT_BATCH_FINDER_PORT)
-    private readonly documentBatchFinder: IDocumentBatchFinderPort,
     @Inject(DOCUMENT_WRITE_REPOSITORY)
     private readonly writeRepository: IDocumentWriteRepository,
     @Inject(CHUNK_WRITE_REPOSITORY)
@@ -40,7 +38,7 @@ export class DeleteDocumentsByKnowledgeBaseService implements IBaseService<
     let page: PaginatedResult<DocumentAggregate>;
 
     do {
-      page = await this.documentBatchFinder.findBatch(1, DELETE_BATCH_SIZE);
+      page = await this.fetchNextBatch();
 
       for (const document of page.items) {
         await this.chunkWriteRepository.deleteByDocumentId(document.id.value);
@@ -51,6 +49,12 @@ export class DeleteDocumentsByKnowledgeBaseService implements IBaseService<
 
     this.logger.log(
       `Deleted ${deleted} documents for knowledge base: ${knowledgeBaseId}`,
+    );
+  }
+
+  private fetchNextBatch(): Promise<PaginatedResult<DocumentAggregate>> {
+    return this.writeRepository.findByCriteria(
+      new Criteria([], [], { page: 1, perPage: DELETE_BATCH_SIZE }),
     );
   }
 }
