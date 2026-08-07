@@ -34,7 +34,13 @@ describe('KnowledgeBaseDeletedListener', () => {
         entityType: 'KnowledgeBaseAggregate',
         eventType: 'KnowledgeBaseDeletedEvent',
       },
-      { id: 'kb-1', name: 'Docs' },
+      {
+        id: 'kb-1',
+        name: 'Docs',
+        description: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
     );
 
     await listener.handle(event);
