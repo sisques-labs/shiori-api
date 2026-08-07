@@ -5,6 +5,11 @@ import {
   IntegrationContext,
 } from '../../helpers/integration-bootstrap';
 import { truncateAll } from '../../helpers/db-reset';
+import {
+  insertChunkFixture,
+  insertDocumentFixture,
+  insertKnowledgeBaseFixture,
+} from '../../helpers/fixtures';
 import { EmbeddingsModule } from '../../../src/contexts/embeddings/embeddings.module';
 import { EmbeddingBuilder } from '../../../src/contexts/embeddings/domain/builders/embedding.builder';
 import { EMBEDDING_VECTOR_DIMENSIONS } from '../../../src/contexts/embeddings/domain/value-objects/embedding-vector/embedding-vector.value-object';
@@ -30,6 +35,7 @@ function buildVector(overrides: Record<number, number> = {}): number[] {
 function buildEmbedding(
   knowledgeBaseId: string,
   documentId: string,
+  chunkId: string,
   vector: number[],
   position = 0,
   text = `chunk ${position}`,
@@ -38,12 +44,13 @@ function buildEmbedding(
     .withId(randomUUID())
     .withKnowledgeBaseId(knowledgeBaseId)
     .withDocumentId(documentId)
-    .withChunkId(randomUUID())
+    .withChunkId(chunkId)
     .withChunkText(text)
     .withChunkPosition(position)
     .withEmbedding(vector)
     .withModel('test-model')
     .withCreatedAt(new Date())
+    .withUpdatedAt(new Date())
     .build();
 }
 
@@ -68,10 +75,43 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
     await truncateAll(ctx.dataSource);
   });
 
+  async function seedDocument(
+    knowledgeBaseId: string,
+    documentId: string,
+  ): Promise<void> {
+    await insertKnowledgeBaseFixture(ctx.dataSource, knowledgeBaseId);
+    await insertDocumentFixture(ctx.dataSource, documentId, knowledgeBaseId);
+  }
+
   describe('search()', () => {
     it('orders results nearest-first by cosine similarity and reports score as 1 - distance', async () => {
       const knowledgeBaseId = randomUUID();
       const documentId = randomUUID();
+      const chunkIdNear = randomUUID();
+      const chunkIdMid = randomUUID();
+      const chunkIdFar = randomUUID();
+      await seedDocument(knowledgeBaseId, documentId);
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkIdNear,
+        documentId,
+        knowledgeBaseId,
+        0,
+      );
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkIdMid,
+        documentId,
+        knowledgeBaseId,
+        1,
+      );
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkIdFar,
+        documentId,
+        knowledgeBaseId,
+        2,
+      );
 
       // Query vector points purely along dimension 0.
       const queryVector = buildVector({ 0: 1 });
@@ -86,6 +126,7 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
         const near = buildEmbedding(
           knowledgeBaseId,
           documentId,
+          chunkIdNear,
           nearVector,
           0,
           'near',
@@ -93,6 +134,7 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
         const mid = buildEmbedding(
           knowledgeBaseId,
           documentId,
+          chunkIdMid,
           midVector,
           1,
           'mid',
@@ -100,6 +142,7 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
         const far = buildEmbedding(
           knowledgeBaseId,
           documentId,
+          chunkIdFar,
           farVector,
           2,
           'far',
@@ -124,12 +167,41 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
       const knowledgeBaseId = randomUUID();
       const documentId = randomUUID();
       const queryVector = buildVector({ 0: 1 });
+      const chunkIds = [randomUUID(), randomUUID(), randomUUID()];
+      await seedDocument(knowledgeBaseId, documentId);
+      for (const [i, chunkId] of chunkIds.entries()) {
+        await insertChunkFixture(
+          ctx.dataSource,
+          chunkId,
+          documentId,
+          knowledgeBaseId,
+          i,
+        );
+      }
 
       await knowledgeBaseContext.run(knowledgeBaseId, async () => {
         await writeRepo.saveMany([
-          buildEmbedding(knowledgeBaseId, documentId, buildVector({ 0: 1 }), 0),
-          buildEmbedding(knowledgeBaseId, documentId, buildVector({ 0: 1 }), 1),
-          buildEmbedding(knowledgeBaseId, documentId, buildVector({ 0: 1 }), 2),
+          buildEmbedding(
+            knowledgeBaseId,
+            documentId,
+            chunkIds[0],
+            buildVector({ 0: 1 }),
+            0,
+          ),
+          buildEmbedding(
+            knowledgeBaseId,
+            documentId,
+            chunkIds[1],
+            buildVector({ 0: 1 }),
+            1,
+          ),
+          buildEmbedding(
+            knowledgeBaseId,
+            documentId,
+            chunkIds[2],
+            buildVector({ 0: 1 }),
+            2,
+          ),
         ]);
 
         const results = await readRepo.search(queryVector, 2);
@@ -141,14 +213,32 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
     it('scopes results to the current knowledge base only', async () => {
       const kbOneId = randomUUID();
       const kbTwoId = randomUUID();
-      const documentId = randomUUID();
+      const documentIdOne = randomUUID();
+      const documentIdTwo = randomUUID();
+      const chunkIdOne = randomUUID();
+      const chunkIdTwo = randomUUID();
       const queryVector = buildVector({ 0: 1 });
+      await seedDocument(kbOneId, documentIdOne);
+      await seedDocument(kbTwoId, documentIdTwo);
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkIdOne,
+        documentIdOne,
+        kbOneId,
+      );
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkIdTwo,
+        documentIdTwo,
+        kbTwoId,
+      );
 
       await knowledgeBaseContext.run(kbOneId, () =>
         writeRepo.saveMany([
           buildEmbedding(
             kbOneId,
-            documentId,
+            documentIdOne,
+            chunkIdOne,
             buildVector({ 0: 1 }),
             0,
             'kb one chunk',
@@ -159,7 +249,8 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
         writeRepo.saveMany([
           buildEmbedding(
             kbTwoId,
-            documentId,
+            documentIdTwo,
+            chunkIdTwo,
             buildVector({ 0: 1 }),
             0,
             'kb two chunk',

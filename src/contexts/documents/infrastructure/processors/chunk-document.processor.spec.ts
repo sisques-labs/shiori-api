@@ -57,6 +57,10 @@ describe('ChunkDocumentProcessor', () => {
       saveMany: jest.fn().mockResolvedValue(undefined),
       deleteByDocumentId: jest.fn(),
       findByDocumentId: jest.fn(),
+      findById: jest.fn(),
+      findByCriteria: jest.fn(),
+      save: jest.fn(),
+      delete: jest.fn(),
     };
     chunkingStrategy = {
       chunk: jest.fn(),
@@ -84,7 +88,8 @@ describe('ChunkDocumentProcessor', () => {
         documentId: document.id.value,
         knowledgeBaseId: document.knowledgeBaseId.value,
       },
-    } as Job<ChunkDocumentJobData>;
+      updateProgress: jest.fn().mockResolvedValue(undefined),
+    } as unknown as Job<ChunkDocumentJobData>;
   }
 
   it('chunks the document, saves the chunks, and persists the CHUNKED status', async () => {

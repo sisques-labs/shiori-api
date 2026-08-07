@@ -74,6 +74,7 @@ export class EmbedDocumentChunksProcessor extends WorkerHost {
           .withEmbedding(vectors[i])
           .withModel(this.embeddingModel)
           .withCreatedAt(now)
+          .withUpdatedAt(now)
           .build(),
       );
 

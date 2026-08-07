@@ -16,4 +16,5 @@ export interface IEmbedding {
   embedding: EmbeddingVectorValueObject;
   model: EmbeddingModelValueObject;
   createdAt: DateValueObject;
+  updatedAt: DateValueObject;
 }

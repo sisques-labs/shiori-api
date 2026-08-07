@@ -15,7 +15,9 @@ export class CreateDocuments1780000000002 implements MigrationInterface {
         "chunk_count" integer NOT NULL DEFAULT 0,
         "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
-        CONSTRAINT "PK_documents_id" PRIMARY KEY ("id")
+        CONSTRAINT "PK_documents_id" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_documents_knowledge_base_id" FOREIGN KEY ("knowledge_base_id")
+          REFERENCES "knowledge_bases" ("id") ON DELETE CASCADE
       )
     `);
     await queryRunner.query(
@@ -30,7 +32,10 @@ export class CreateDocuments1780000000002 implements MigrationInterface {
         "position" integer NOT NULL,
         "text" text NOT NULL,
         "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
-        CONSTRAINT "PK_chunks_id" PRIMARY KEY ("id")
+        "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_chunks_id" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_chunks_document_id" FOREIGN KEY ("document_id")
+          REFERENCES "documents" ("id") ON DELETE CASCADE
       )
     `);
     await queryRunner.query(

@@ -4,6 +4,7 @@ import {
   Entity,
   Index,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 
 import { EMBEDDING_VECTOR_DIMENSIONS } from '@contexts/embeddings/domain/value-objects/embedding-vector/embedding-vector.value-object';
@@ -38,4 +39,7 @@ export class EmbeddingTypeOrmEntity {
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
 }

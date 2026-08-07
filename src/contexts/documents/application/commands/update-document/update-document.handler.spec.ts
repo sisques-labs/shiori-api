@@ -70,6 +70,10 @@ describe('UpdateDocumentCommandHandler', () => {
       saveMany: jest.fn(),
       deleteByDocumentId: jest.fn().mockResolvedValue(undefined),
       findByDocumentId: jest.fn(),
+      findById: jest.fn(),
+      findByCriteria: jest.fn(),
+      save: jest.fn(),
+      delete: jest.fn(),
     };
     assertExists = { execute: jest.fn().mockResolvedValue(document) } as any;
     processingQueue = {

@@ -31,6 +31,10 @@ function buildProcessor() {
     saveMany: jest.fn(),
     deleteByDocumentId: jest.fn(),
     deleteByKnowledgeBaseId: jest.fn(),
+    findById: jest.fn(),
+    findByCriteria: jest.fn(),
+    save: jest.fn(),
+    delete: jest.fn(),
   };
   const knowledgeBaseContext = {
     run: jest.fn((_id: string, fn: () => unknown) => fn()),

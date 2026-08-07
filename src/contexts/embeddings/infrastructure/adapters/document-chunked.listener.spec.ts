@@ -28,7 +28,17 @@ describe('DocumentChunkedListener', () => {
         entityType: 'DocumentAggregate',
         eventType: 'DocumentChunkedEvent',
       },
-      { id: documentId, knowledgeBaseId, status: 'CHUNKED' },
+      {
+        id: documentId,
+        knowledgeBaseId,
+        title: 'Doc',
+        content: 'Content',
+        status: 'CHUNKED',
+        failureReason: null,
+        chunkCount: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
     );
 
     await listener.handle(event);

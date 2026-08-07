@@ -21,6 +21,10 @@ describe('ChunkFindByDocumentIdQueryHandler', () => {
       saveMany: jest.fn(),
       deleteByDocumentId: jest.fn(),
       findByDocumentId: jest.fn(),
+      findById: jest.fn(),
+      findByCriteria: jest.fn(),
+      save: jest.fn(),
+      delete: jest.fn(),
     };
 
     handler = new ChunkFindByDocumentIdQueryHandler(chunkWriteRepository);
@@ -34,6 +38,7 @@ describe('ChunkFindByDocumentIdQueryHandler', () => {
       .withPosition(position)
       .withText(text)
       .withCreatedAt(new Date())
+      .withUpdatedAt(new Date())
       .build();
   }
 

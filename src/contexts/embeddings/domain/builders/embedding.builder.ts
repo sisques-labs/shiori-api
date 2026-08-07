@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import {
+  BaseBuilder,
   DateValueObject,
   FieldIsRequiredException,
   UuidValueObject,
 } from '@sisques-labs/nestjs-kit';
 
 import { EmbeddingAggregate } from '@contexts/embeddings/domain/aggregates/embedding.aggregate';
+import { EmbeddingViewModel } from '@contexts/embeddings/domain/view-models/embedding.view-model';
 import { EmbeddingChunkPositionValueObject } from '@contexts/embeddings/domain/value-objects/embedding-chunk-position/embedding-chunk-position.value-object';
 import { EmbeddingChunkTextValueObject } from '@contexts/embeddings/domain/value-objects/embedding-chunk-text/embedding-chunk-text.value-object';
 import { EmbeddingIdValueObject } from '@contexts/embeddings/domain/value-objects/embedding-id/embedding-id.value-object';
@@ -13,8 +15,10 @@ import { EmbeddingModelValueObject } from '@contexts/embeddings/domain/value-obj
 import { EmbeddingVectorValueObject } from '@contexts/embeddings/domain/value-objects/embedding-vector/embedding-vector.value-object';
 
 @Injectable()
-export class EmbeddingBuilder {
-  private _id!: string;
+export class EmbeddingBuilder extends BaseBuilder<
+  EmbeddingAggregate,
+  EmbeddingViewModel
+> {
   private _knowledgeBaseId!: string;
   private _documentId!: string;
   private _chunkId!: string;
@@ -22,12 +26,6 @@ export class EmbeddingBuilder {
   private _chunkPosition!: number;
   private _embedding!: number[];
   private _model!: string;
-  private _createdAt: Date = new Date();
-
-  withId(id: string): this {
-    this._id = id;
-    return this;
-  }
 
   withKnowledgeBaseId(knowledgeBaseId: string): this {
     this._knowledgeBaseId = knowledgeBaseId;
@@ -64,13 +62,8 @@ export class EmbeddingBuilder {
     return this;
   }
 
-  withCreatedAt(createdAt: Date): this {
-    this._createdAt = createdAt;
-    return this;
-  }
-
-  private validate(): void {
-    if (!this._id) throw new FieldIsRequiredException('id');
+  public override validate(): void {
+    super.validate();
     if (!this._knowledgeBaseId)
       throw new FieldIsRequiredException('knowledgeBaseId');
     if (!this._documentId) throw new FieldIsRequiredException('documentId');
@@ -82,7 +75,7 @@ export class EmbeddingBuilder {
     if (!this._model) throw new FieldIsRequiredException('model');
   }
 
-  build(): EmbeddingAggregate {
+  public override build(): EmbeddingAggregate {
     this.validate();
     return new EmbeddingAggregate({
       id: new EmbeddingIdValueObject(this._id),
@@ -94,6 +87,23 @@ export class EmbeddingBuilder {
       embedding: new EmbeddingVectorValueObject(this._embedding),
       model: new EmbeddingModelValueObject(this._model),
       createdAt: new DateValueObject(this._createdAt),
+      updatedAt: new DateValueObject(this._updatedAt),
+    });
+  }
+
+  public override buildViewModel(): EmbeddingViewModel {
+    this.validate();
+    return new EmbeddingViewModel({
+      id: this._id,
+      knowledgeBaseId: this._knowledgeBaseId,
+      documentId: this._documentId,
+      chunkId: this._chunkId,
+      chunkText: this._chunkText,
+      chunkPosition: this._chunkPosition,
+      embedding: this._embedding,
+      model: this._model,
+      createdAt: this._createdAt,
+      updatedAt: this._updatedAt,
     });
   }
 }

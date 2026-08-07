@@ -5,6 +5,10 @@ import {
   IntegrationContext,
 } from '../../helpers/integration-bootstrap';
 import { truncateAll } from '../../helpers/db-reset';
+import {
+  insertDocumentFixture,
+  insertKnowledgeBaseFixture,
+} from '../../helpers/fixtures';
 import { DocumentsModule } from '../../../src/contexts/documents/documents.module';
 import { ChunkBuilder } from '../../../src/contexts/documents/domain/builders/chunk.builder';
 import {
@@ -26,6 +30,7 @@ function buildChunk(
     .withPosition(position)
     .withText(text)
     .withCreatedAt(new Date())
+    .withUpdatedAt(new Date())
     .build();
 }
 
@@ -52,6 +57,8 @@ describe('ChunkTypeOrmWriteRepository (integration)', () => {
     it('persists all chunks and returns them ordered by position', async () => {
       const knowledgeBaseId = randomUUID();
       const documentId = randomUUID();
+      await insertKnowledgeBaseFixture(ctx.dataSource, knowledgeBaseId);
+      await insertDocumentFixture(ctx.dataSource, documentId, knowledgeBaseId);
 
       await knowledgeBaseContext.run(knowledgeBaseId, async () => {
         const chunks = [
@@ -90,6 +97,8 @@ describe('ChunkTypeOrmWriteRepository (integration)', () => {
       const kbOneId = randomUUID();
       const kbTwoId = randomUUID();
       const documentId = randomUUID();
+      await insertKnowledgeBaseFixture(ctx.dataSource, kbOneId);
+      await insertDocumentFixture(ctx.dataSource, documentId, kbOneId);
 
       await knowledgeBaseContext.run(kbOneId, () =>
         chunkWriteRepo.saveMany([buildChunk(kbOneId, documentId, 0)]),
@@ -107,6 +116,8 @@ describe('ChunkTypeOrmWriteRepository (integration)', () => {
     it('removes all chunks for the document', async () => {
       const knowledgeBaseId = randomUUID();
       const documentId = randomUUID();
+      await insertKnowledgeBaseFixture(ctx.dataSource, knowledgeBaseId);
+      await insertDocumentFixture(ctx.dataSource, documentId, knowledgeBaseId);
 
       await knowledgeBaseContext.run(knowledgeBaseId, async () => {
         await chunkWriteRepo.saveMany([
@@ -126,6 +137,17 @@ describe('ChunkTypeOrmWriteRepository (integration)', () => {
       const knowledgeBaseId = randomUUID();
       const documentIdOne = randomUUID();
       const documentIdTwo = randomUUID();
+      await insertKnowledgeBaseFixture(ctx.dataSource, knowledgeBaseId);
+      await insertDocumentFixture(
+        ctx.dataSource,
+        documentIdOne,
+        knowledgeBaseId,
+      );
+      await insertDocumentFixture(
+        ctx.dataSource,
+        documentIdTwo,
+        knowledgeBaseId,
+      );
 
       await knowledgeBaseContext.run(knowledgeBaseId, async () => {
         await chunkWriteRepo.saveMany([

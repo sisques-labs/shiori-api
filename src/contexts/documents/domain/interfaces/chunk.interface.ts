@@ -11,4 +11,5 @@ export interface IChunk {
   position: ChunkPositionValueObject;
   text: ChunkTextValueObject;
   createdAt: DateValueObject;
+  updatedAt: DateValueObject;
 }

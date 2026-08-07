@@ -5,6 +5,11 @@ import {
   IntegrationContext,
 } from '../../helpers/integration-bootstrap';
 import { truncateAll } from '../../helpers/db-reset';
+import {
+  insertChunkFixture,
+  insertDocumentFixture,
+  insertKnowledgeBaseFixture,
+} from '../../helpers/fixtures';
 import { EmbeddingsModule } from '../../../src/contexts/embeddings/embeddings.module';
 import { EmbeddingBuilder } from '../../../src/contexts/embeddings/domain/builders/embedding.builder';
 import { EMBEDDING_VECTOR_DIMENSIONS } from '../../../src/contexts/embeddings/domain/value-objects/embedding-vector/embedding-vector.value-object';
@@ -21,6 +26,7 @@ function vector(fill = 0.1): number[] {
 function buildEmbedding(
   knowledgeBaseId: string,
   documentId: string,
+  chunkId: string,
   position = 0,
   text = `chunk ${position}`,
 ) {
@@ -28,12 +34,13 @@ function buildEmbedding(
     .withId(randomUUID())
     .withKnowledgeBaseId(knowledgeBaseId)
     .withDocumentId(documentId)
-    .withChunkId(randomUUID())
+    .withChunkId(chunkId)
     .withChunkText(text)
     .withChunkPosition(position)
     .withEmbedding(vector())
     .withModel('test-model')
     .withCreatedAt(new Date())
+    .withUpdatedAt(new Date())
     .build();
 }
 
@@ -64,15 +71,40 @@ describe('EmbeddingTypeOrmWriteRepository (integration)', () => {
     return rows[0].count;
   }
 
+  async function seedDocument(
+    knowledgeBaseId: string,
+    documentId: string,
+  ): Promise<void> {
+    await insertKnowledgeBaseFixture(ctx.dataSource, knowledgeBaseId);
+    await insertDocumentFixture(ctx.dataSource, documentId, knowledgeBaseId);
+  }
+
   describe('saveMany()', () => {
     it('bulk-inserts all embeddings, stamping the ambient knowledgeBaseId explicitly', async () => {
       const knowledgeBaseId = randomUUID();
       const documentId = randomUUID();
+      const chunkIdOne = randomUUID();
+      const chunkIdTwo = randomUUID();
+      await seedDocument(knowledgeBaseId, documentId);
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkIdOne,
+        documentId,
+        knowledgeBaseId,
+        0,
+      );
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkIdTwo,
+        documentId,
+        knowledgeBaseId,
+        1,
+      );
 
       await knowledgeBaseContext.run(knowledgeBaseId, async () => {
         const embeddings = [
-          buildEmbedding(knowledgeBaseId, documentId, 0, 'first'),
-          buildEmbedding(knowledgeBaseId, documentId, 1, 'second'),
+          buildEmbedding(knowledgeBaseId, documentId, chunkIdOne, 0, 'first'),
+          buildEmbedding(knowledgeBaseId, documentId, chunkIdTwo, 1, 'second'),
         ];
 
         await embeddingWriteRepo.saveMany(embeddings);
@@ -106,13 +138,33 @@ describe('EmbeddingTypeOrmWriteRepository (integration)', () => {
       const knowledgeBaseId = randomUUID();
       const documentIdOne = randomUUID();
       const documentIdTwo = randomUUID();
+      const chunkIdOne = randomUUID();
+      const chunkIdTwo = randomUUID();
+      await seedDocument(knowledgeBaseId, documentIdOne);
+      await insertDocumentFixture(
+        ctx.dataSource,
+        documentIdTwo,
+        knowledgeBaseId,
+      );
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkIdOne,
+        documentIdOne,
+        knowledgeBaseId,
+      );
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkIdTwo,
+        documentIdTwo,
+        knowledgeBaseId,
+      );
 
       await knowledgeBaseContext.run(knowledgeBaseId, async () => {
         await embeddingWriteRepo.saveMany([
-          buildEmbedding(knowledgeBaseId, documentIdOne, 0),
+          buildEmbedding(knowledgeBaseId, documentIdOne, chunkIdOne, 0),
         ]);
         await embeddingWriteRepo.saveMany([
-          buildEmbedding(knowledgeBaseId, documentIdTwo, 0),
+          buildEmbedding(knowledgeBaseId, documentIdTwo, chunkIdTwo, 0),
         ]);
 
         await embeddingWriteRepo.deleteByDocumentId(documentIdOne);
@@ -129,15 +181,31 @@ describe('EmbeddingTypeOrmWriteRepository (integration)', () => {
       const kbTwoId = randomUUID();
       const documentIdOne = randomUUID();
       const documentIdTwo = randomUUID();
+      const chunkIdOne = randomUUID();
+      const chunkIdTwo = randomUUID();
+      await seedDocument(kbOneId, documentIdOne);
+      await seedDocument(kbTwoId, documentIdTwo);
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkIdOne,
+        documentIdOne,
+        kbOneId,
+      );
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkIdTwo,
+        documentIdTwo,
+        kbTwoId,
+      );
 
       await knowledgeBaseContext.run(kbOneId, () =>
         embeddingWriteRepo.saveMany([
-          buildEmbedding(kbOneId, documentIdOne, 0),
+          buildEmbedding(kbOneId, documentIdOne, chunkIdOne, 0),
         ]),
       );
       await knowledgeBaseContext.run(kbTwoId, () =>
         embeddingWriteRepo.saveMany([
-          buildEmbedding(kbTwoId, documentIdTwo, 0),
+          buildEmbedding(kbTwoId, documentIdTwo, chunkIdTwo, 0),
         ]),
       );
 

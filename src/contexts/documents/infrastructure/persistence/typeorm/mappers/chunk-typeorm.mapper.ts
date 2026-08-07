@@ -16,6 +16,7 @@ export class ChunkTypeOrmMapper {
       .withPosition(entity.position)
       .withText(entity.text)
       .withCreatedAt(entity.createdAt)
+      .withUpdatedAt(entity.updatedAt)
       .build();
   }
 
@@ -28,6 +29,7 @@ export class ChunkTypeOrmMapper {
     entity.position = p.position;
     entity.text = p.text;
     entity.createdAt = p.createdAt;
+    entity.updatedAt = p.updatedAt;
     return entity;
   }
 }

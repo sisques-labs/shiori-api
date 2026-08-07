@@ -33,6 +33,7 @@ describe('EmbeddingAggregate', () => {
       embedding: new EmbeddingVectorValueObject(vector()),
       model: new EmbeddingModelValueObject('text-embedding-3-small'),
       createdAt: new DateValueObject(now),
+      updatedAt: new DateValueObject(now),
     });
 
     expect(embedding.knowledgeBaseId.value).toBe(knowledgeBaseId.value);
@@ -62,6 +63,7 @@ describe('EmbeddingAggregate', () => {
       embedding: new EmbeddingVectorValueObject(v),
       model: new EmbeddingModelValueObject('m'),
       createdAt: new DateValueObject(now),
+      updatedAt: new DateValueObject(now),
     });
 
     expect(embedding.toPrimitives()).toEqual({
@@ -74,6 +76,7 @@ describe('EmbeddingAggregate', () => {
       embedding: v,
       model: 'm',
       createdAt: now,
+      updatedAt: now,
     });
   });
 });

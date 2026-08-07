@@ -4,6 +4,7 @@ import {
   Entity,
   Index,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 
 @Entity('chunks')
@@ -27,4 +28,7 @@ export class ChunkTypeOrmEntity {
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
 }
