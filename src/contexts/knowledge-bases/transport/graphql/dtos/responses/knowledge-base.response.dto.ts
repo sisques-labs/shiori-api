@@ -12,6 +12,12 @@ export class KnowledgeBaseResponseDto {
   @Field(() => String, { nullable: true })
   description!: string | null;
 
+  @Field(() => String)
+  embeddingModel!: string;
+
+  @Field(() => String)
+  embeddingStatus!: string;
+
   @Field(() => Date)
   createdAt!: Date;
 

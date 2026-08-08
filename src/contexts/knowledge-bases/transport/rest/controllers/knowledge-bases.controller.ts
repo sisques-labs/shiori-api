@@ -18,6 +18,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
+import { ChangeKnowledgeBaseEmbeddingModelCommand } from '@contexts/knowledge-bases/application/commands/change-knowledge-base-embedding-model/change-knowledge-base-embedding-model.command';
 import { CreateKnowledgeBaseCommand } from '@contexts/knowledge-bases/application/commands/create-knowledge-base/create-knowledge-base.command';
 import { CreateKnowledgeBaseResult } from '@contexts/knowledge-bases/application/commands/create-knowledge-base/create-knowledge-base.handler';
 import { DeleteKnowledgeBaseCommand } from '@contexts/knowledge-bases/application/commands/delete-knowledge-base/delete-knowledge-base.command';
@@ -29,6 +30,7 @@ import { CurrentKnowledgeBaseId } from '@core/tenancy/current-knowledge-base-id.
 import { SkipKnowledgeBaseAuth } from '@core/tenancy/skip-knowledge-base-auth.decorator';
 import { KnowledgeBaseApiKeyGuard } from '@core/tenancy/knowledge-base-api-key.guard';
 
+import { ChangeKnowledgeBaseEmbeddingModelDto } from '../dtos/change-knowledge-base-embedding-model.dto';
 import { CreateKnowledgeBaseDto } from '../dtos/create-knowledge-base.dto';
 import { KnowledgeBaseCreatedRestResponseDto } from '../dtos/knowledge-base-created-rest-response.dto';
 import { KnowledgeBaseRestResponseDto } from '../dtos/knowledge-base-rest-response.dto';
@@ -65,6 +67,7 @@ export class KnowledgeBasesController {
       new CreateKnowledgeBaseCommand({
         name: dto.name,
         description: dto.description,
+        embeddingModel: dto.embeddingModel,
       }),
     );
 
@@ -132,6 +135,37 @@ export class KnowledgeBasesController {
     await this.commandBus.execute(
       new DeleteKnowledgeBaseCommand({ id: knowledgeBaseId }),
     );
+  }
+
+  @Patch('me/embedding-model')
+  @UseGuards(KnowledgeBaseApiKeyGuard)
+  @ApiSecurity('x-api-key')
+  @ApiOperation({
+    summary:
+      "Change the caller's own embedding model (triggers a blocking re-embed if different from the current model)",
+  })
+  @ApiResponse({ status: 200, type: KnowledgeBaseRestResponseDto })
+  @ApiResponse({ status: 400, description: 'Unknown embedding model' })
+  @ApiResponse({ status: 401, description: 'Missing or invalid X-API-Key' })
+  @ApiResponse({ status: 409, description: 'Already re-embedding' })
+  async changeOwnKnowledgeBaseEmbeddingModel(
+    @CurrentKnowledgeBaseId() knowledgeBaseId: string,
+    @Body() dto: ChangeKnowledgeBaseEmbeddingModelDto,
+  ): Promise<KnowledgeBaseRestResponseDto> {
+    this.logger.log(
+      `Changing embedding model for knowledge base: ${knowledgeBaseId}`,
+    );
+
+    await this.commandBus.execute(
+      new ChangeKnowledgeBaseEmbeddingModelCommand({
+        id: knowledgeBaseId,
+        embeddingModel: dto.embeddingModel,
+      }),
+    );
+
+    const knowledgeBaseViewModel =
+      await this.assertViewModelExists.execute(knowledgeBaseId);
+    return this.restMapper.toResponse(knowledgeBaseViewModel);
   }
 
   @Post('me/rotate-api-key')

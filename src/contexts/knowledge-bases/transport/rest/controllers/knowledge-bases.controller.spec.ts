@@ -38,7 +38,10 @@ describe('KnowledgeBasesController', () => {
       updatedAt: new Date(),
     } as any);
 
-    const dto: CreateKnowledgeBaseDto = { name: 'Docs' };
+    const dto: CreateKnowledgeBaseDto = {
+      name: 'Docs',
+      embeddingModel: 'text-embedding-3-small',
+    };
     const result = await controller.createKnowledgeBase(dto);
 
     expect(assertViewModelExists.execute).toHaveBeenCalledWith('kb-1');
