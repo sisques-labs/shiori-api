@@ -22,6 +22,7 @@ import { ChangeKnowledgeBaseEmbeddingModelCommand } from '@contexts/knowledge-ba
 import { CreateKnowledgeBaseCommand } from '@contexts/knowledge-bases/application/commands/create-knowledge-base/create-knowledge-base.command';
 import { CreateKnowledgeBaseResult } from '@contexts/knowledge-bases/application/commands/create-knowledge-base/create-knowledge-base.handler';
 import { DeleteKnowledgeBaseCommand } from '@contexts/knowledge-bases/application/commands/delete-knowledge-base/delete-knowledge-base.command';
+import { ReembedKnowledgeBaseCommand } from '@contexts/knowledge-bases/application/commands/reembed-knowledge-base/reembed-knowledge-base.command';
 import { RotateKnowledgeBaseApiKeyCommand } from '@contexts/knowledge-bases/application/commands/rotate-knowledge-base-api-key/rotate-knowledge-base-api-key.command';
 import { RotateKnowledgeBaseApiKeyResult } from '@contexts/knowledge-bases/application/commands/rotate-knowledge-base-api-key/rotate-knowledge-base-api-key.handler';
 import { UpdateKnowledgeBaseCommand } from '@contexts/knowledge-bases/application/commands/update-knowledge-base/update-knowledge-base.command';
@@ -165,6 +166,33 @@ export class KnowledgeBasesController {
         id: knowledgeBaseId,
         embeddingModel: dto.embeddingModel,
       }),
+    );
+
+    const knowledgeBaseViewModel =
+      await this.assertViewModelExists.execute(knowledgeBaseId);
+    return this.restMapper.toResponse(knowledgeBaseViewModel);
+  }
+
+  @Post('me/reembed')
+  @UseGuards(KnowledgeBaseApiKeyGuard)
+  @ApiSecurity('x-api-key')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      "Force a full re-embed of the caller's own knowledge base under its current embedding model",
+  })
+  @ApiResponse({ status: 200, type: KnowledgeBaseRestResponseDto })
+  @ApiResponse({ status: 401, description: 'Missing or invalid X-API-Key' })
+  @ApiResponse({ status: 409, description: 'Already re-embedding' })
+  async reembedOwnKnowledgeBase(
+    @CurrentKnowledgeBaseId() knowledgeBaseId: string,
+  ): Promise<KnowledgeBaseRestResponseDto> {
+    this.logger.log(
+      `Requesting reembedding for knowledge base: ${knowledgeBaseId}`,
+    );
+
+    await this.commandBus.execute(
+      new ReembedKnowledgeBaseCommand({ id: knowledgeBaseId }),
     );
 
     const knowledgeBaseViewModel =

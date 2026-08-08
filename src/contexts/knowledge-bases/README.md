@@ -33,19 +33,27 @@ Base, run entirely by `embeddings`.
                │
                ▼
              READY ───────────────┐
-               │  ChangeKnowledgeBaseEmbeddingModel
-               │  (different model)
-               ▼                  │
+               │  ChangeKnowledgeBaseEmbeddingModel     ReembedKnowledgeBase
+               │  (different model)                     (same model, forced)
+               ▼                  │                              │
          REEMBEDDING              │ ChangeKnowledgeBaseEmbeddingModel
           │        │              │ (same model → no-op, no transition)
- Complete │        │ Fail         │
- (success)│        │ (error)      │
-          ▼        ▼              │
-        READY    FAILED ──────────┘
+ Complete │        │ Fail         │                              │
+ (success)│        │ (error)      │                              │
+          ▼        ▼              │                              │
+        READY    FAILED ──────────┴──────────────────────────────┘
                     │  ChangeKnowledgeBaseEmbeddingModel (retry)
+                    │  ReembedKnowledgeBase (retry)
                     ▼
               REEMBEDDING
 ```
+
+`ReembedKnowledgeBase` and `ChangeKnowledgeBaseEmbeddingModel` both drive
+`READY`/`FAILED → REEMBEDDING` and both publish an event `embeddings` reacts
+to by enqueueing the same re-embed job — the difference is entirely in
+whether the target model differs from the current one. Unlike
+`ChangeKnowledgeBaseEmbeddingModel`, `ReembedKnowledgeBase` never no-ops:
+there is no "unchanged model" case to skip, since the model never changes.
 
 - While `REEMBEDDING`: `retrieval`/`embeddings` search is rejected for this
   Knowledge Base (HTTP 409, `EmbeddingSearchNotReadyException`,
@@ -104,6 +112,16 @@ checked via `IEmbeddingModelValidationPort` below, never by sharing a type.
   with 409 if already `REEMBEDDING` for a genuinely different model,
   otherwise calls `aggregate.changeEmbeddingModel(...)`, saves, and
   publishes `KnowledgeBaseEmbeddingModelChangeRequestedEvent`.
+- `ReembedKnowledgeBase` — auth required (`POST /knowledge-bases/me/reembed`,
+  GraphQL mutation `reembedKnowledgeBase`, same `/me` resolution as every
+  other authenticated route here). Forces a full re-embed of every document
+  under the **current** embedding model — no model argument, unlike
+  `ChangeKnowledgeBaseEmbeddingModel`. Exists for recovering from
+  partial/corrupted embedding rows or provider-side drift without switching
+  models. Rejects with 409 (`KnowledgeBaseReembeddingInProgressException`)
+  if already `REEMBEDDING`; retryable from `FAILED`. Calls
+  `aggregate.requestReembedding()`, saves, and publishes
+  `KnowledgeBaseReembeddingRequestedEvent`.
 - `CompleteKnowledgeBaseReembedding` — **internal only**, no transport
   surface. Dispatched exclusively by `embeddings`' re-embed processor (via
   `IKnowledgeBaseReembeddingStatusPort` on that side) on success. Sets

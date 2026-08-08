@@ -98,10 +98,16 @@ export class ReembedKnowledgeBaseProcessor {
         // Only removed after every document has succeeded — avoids a
         // partial state where some documents are searchable under the new
         // model while others have zero embeddings if the job fails partway.
-        await this.embeddingWriteRepository.deleteByKnowledgeBaseIdAndModel(
-          knowledgeBaseId,
-          previousModel,
-        );
+        // Skipped entirely for a forced same-model re-embed (previousModel
+        // === newModel, from KnowledgeBaseReembeddingRequestedEvent): the
+        // rows just written above ARE the previous model's rows, so this
+        // would otherwise delete what was just re-embedded.
+        if (previousModel !== newModel) {
+          await this.embeddingWriteRepository.deleteByKnowledgeBaseIdAndModel(
+            knowledgeBaseId,
+            previousModel,
+          );
+        }
 
         await this.reembeddingStatus.complete(knowledgeBaseId);
 

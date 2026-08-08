@@ -174,6 +174,43 @@ describe('ReembedKnowledgeBaseProcessor', () => {
     ).toHaveBeenCalledWith(knowledgeBaseId, newModel);
   });
 
+  it('forced same-model re-embed (previousModel === newModel): clears once, re-embeds, and skips the previous-model delete', async () => {
+    const {
+      processor,
+      chunkSource,
+      embeddingWriteRepository,
+      reembeddingStatus,
+      embedDocumentChunks,
+    } = buildProcessor();
+
+    chunkSource.findKnowledgeBaseDocumentIds.mockResolvedValue([documentId1]);
+
+    const job = buildJob({
+      knowledgeBaseId,
+      previousModel: newModel,
+      newModel,
+    });
+    await processor.process(job);
+
+    expect(embedDocumentChunks.execute).toHaveBeenCalledWith(
+      documentId1,
+      knowledgeBaseId,
+      newModel,
+      768,
+    );
+
+    // Only the initial "clear target model" delete happened — a second
+    // delete for the same model would wipe the rows just re-embedded.
+    expect(
+      embeddingWriteRepository.deleteByKnowledgeBaseIdAndModel,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      embeddingWriteRepository.deleteByKnowledgeBaseIdAndModel,
+    ).toHaveBeenCalledWith(knowledgeBaseId, newModel);
+
+    expect(reembeddingStatus.complete).toHaveBeenCalledWith(knowledgeBaseId);
+  });
+
   it('tolerates a document with no chunks (EmbedDocumentChunksService is a no-op) without failing the job', async () => {
     const { processor, chunkSource, embedDocumentChunks, reembeddingStatus } =
       buildProcessor();

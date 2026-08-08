@@ -24,6 +24,7 @@ import { Criteria, PaginatedResult } from '@sisques-labs/nestjs-kit';
 import { CreateDocumentCommand } from '@contexts/documents/application/commands/create-document/create-document.command';
 import { CreateDocumentResult } from '@contexts/documents/application/commands/create-document/create-document.handler';
 import { DeleteDocumentCommand } from '@contexts/documents/application/commands/delete-document/delete-document.command';
+import { RechunkDocumentCommand } from '@contexts/documents/application/commands/rechunk-document/rechunk-document.command';
 import { UpdateDocumentCommand } from '@contexts/documents/application/commands/update-document/update-document.command';
 import { DocumentFindByCriteriaQuery } from '@contexts/documents/application/queries/document-find-by-criteria/document-find-by-criteria.query';
 import { AssertDocumentViewModelExistsService } from '@contexts/documents/application/services/read/assert-document-view-model-exists/assert-document-view-model-exists.service';
@@ -133,6 +134,26 @@ export class DocumentsController {
     await this.commandBus.execute(
       new UpdateDocumentCommand({ id, title: dto.title, content: dto.content }),
     );
+
+    const documentViewModel = await this.assertViewModelExists.execute(id);
+    return this.restMapper.toResponse(documentViewModel);
+  }
+
+  @Post(':id/rechunk')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Force a re-chunk of a document under its current content (no content change required)',
+  })
+  @ApiResponse({ status: 200, type: DocumentRestResponseDto })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiResponse({ status: 422, description: 'Document is currently chunking' })
+  async rechunkDocument(
+    @Param('id') id: string,
+  ): Promise<DocumentRestResponseDto> {
+    this.logger.log(`Requesting rechunk for document: ${id}`);
+
+    await this.commandBus.execute(new RechunkDocumentCommand({ id }));
 
     const documentViewModel = await this.assertViewModelExists.execute(id);
     return this.restMapper.toResponse(documentViewModel);

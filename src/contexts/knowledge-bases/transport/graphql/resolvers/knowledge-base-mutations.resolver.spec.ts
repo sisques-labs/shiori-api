@@ -68,6 +68,21 @@ describe('KnowledgeBaseMutationsResolver', () => {
     );
   });
 
+  it('reembedKnowledgeBase dispatches with the caller’s own id', async () => {
+    const id = 'e3c1a1b0-0000-4000-8000-000000000001';
+
+    await resolver.reembedKnowledgeBase(id);
+
+    expect(commandBus.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: expect.objectContaining({ value: id }),
+      }),
+    );
+    expect(mutationResponseGraphQLMapper.toResponseDto).toHaveBeenCalledWith(
+      expect.objectContaining({ id }),
+    );
+  });
+
   it('rotateKnowledgeBaseApiKey returns only the new key', async () => {
     commandBus.execute.mockResolvedValue({ apiKey: 'kb_new' });
 

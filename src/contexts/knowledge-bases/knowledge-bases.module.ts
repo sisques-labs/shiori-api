@@ -9,6 +9,7 @@ import { CompleteKnowledgeBaseReembeddingCommandHandler } from './application/co
 import { CreateKnowledgeBaseCommandHandler } from './application/commands/create-knowledge-base/create-knowledge-base.handler';
 import { DeleteKnowledgeBaseCommandHandler } from './application/commands/delete-knowledge-base/delete-knowledge-base.handler';
 import { FailKnowledgeBaseReembeddingCommandHandler } from './application/commands/fail-knowledge-base-reembedding/fail-knowledge-base-reembedding.handler';
+import { ReembedKnowledgeBaseCommandHandler } from './application/commands/reembed-knowledge-base/reembed-knowledge-base.handler';
 import { RotateKnowledgeBaseApiKeyCommandHandler } from './application/commands/rotate-knowledge-base-api-key/rotate-knowledge-base-api-key.handler';
 import { UpdateKnowledgeBaseCommandHandler } from './application/commands/update-knowledge-base/update-knowledge-base.handler';
 import { KnowledgeBaseFindByApiKeyHashQueryHandler } from './application/queries/knowledge-base-find-by-api-key-hash/knowledge-base-find-by-api-key-hash.handler';
@@ -42,6 +43,7 @@ const COMMAND_HANDLERS = [
   DeleteKnowledgeBaseCommandHandler,
   RotateKnowledgeBaseApiKeyCommandHandler,
   ChangeKnowledgeBaseEmbeddingModelCommandHandler,
+  ReembedKnowledgeBaseCommandHandler,
   CompleteKnowledgeBaseReembeddingCommandHandler,
   FailKnowledgeBaseReembeddingCommandHandler,
 ];

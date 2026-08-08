@@ -173,6 +173,36 @@ describe('KnowledgeBaseAggregate', () => {
     });
   });
 
+  describe('requestReembedding()', () => {
+    it('flips to REEMBEDDING and emits KnowledgeBaseReembeddingRequested for the current model', () => {
+      const knowledgeBase = buildAggregate('text-embedding-3-small', 'READY');
+
+      knowledgeBase.requestReembedding();
+
+      expect(knowledgeBase.embeddingModel.value).toBe('text-embedding-3-small');
+      expect(knowledgeBase.embeddingStatus.value).toBe('REEMBEDDING');
+
+      const events = knowledgeBase.getUncommittedEvents();
+      expect(events).toHaveLength(1);
+      const event = events[0] as any;
+      expect(event.constructor.name).toBe(
+        'KnowledgeBaseReembeddingRequestedEvent',
+      );
+      expect(event.data).toEqual({
+        knowledgeBaseId: knowledgeBase.id.value,
+        model: 'text-embedding-3-small',
+      });
+    });
+
+    it('also transitions from FAILED (retryable)', () => {
+      const knowledgeBase = buildAggregate('text-embedding-3-small', 'FAILED');
+
+      knowledgeBase.requestReembedding();
+
+      expect(knowledgeBase.embeddingStatus.value).toBe('REEMBEDDING');
+    });
+  });
+
   describe('completeReembedding()', () => {
     it('sets embeddingStatus back to READY', () => {
       const knowledgeBase = buildAggregate(
