@@ -28,6 +28,7 @@ describe('KnowledgeBaseTypeOrmWriteRepository', () => {
       .withId('e3c1a1b0-0000-4000-8000-000000000001')
       .withName('Docs')
       .withApiKeyHash('a'.repeat(64))
+      .withEmbeddingModel('text-embedding-3-small')
       .withCreatedAt(new Date())
       .withUpdatedAt(new Date())
       .build();

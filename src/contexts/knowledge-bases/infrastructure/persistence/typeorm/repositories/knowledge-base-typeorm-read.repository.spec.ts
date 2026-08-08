@@ -19,6 +19,8 @@ describe('KnowledgeBaseTypeOrmReadRepository', () => {
     entity.name = 'Docs';
     entity.description = null;
     entity.apiKeyHash = 'a'.repeat(64);
+    entity.embeddingModel = 'text-embedding-3-small';
+    entity.embeddingStatus = 'READY';
     entity.createdAt = new Date();
     entity.updatedAt = new Date();
     return entity;

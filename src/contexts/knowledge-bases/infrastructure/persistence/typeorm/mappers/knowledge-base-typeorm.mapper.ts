@@ -15,6 +15,8 @@ export class KnowledgeBaseTypeOrmMapper {
       .withName(entity.name)
       .withDescription(entity.description)
       .withApiKeyHash(entity.apiKeyHash)
+      .withEmbeddingModel(entity.embeddingModel)
+      .withEmbeddingStatus(entity.embeddingStatus)
       .withCreatedAt(entity.createdAt)
       .withUpdatedAt(entity.updatedAt)
       .build();
@@ -29,6 +31,8 @@ export class KnowledgeBaseTypeOrmMapper {
     entity.name = p.name;
     entity.description = p.description;
     entity.apiKeyHash = p.apiKeyHash;
+    entity.embeddingModel = p.embeddingModel;
+    entity.embeddingStatus = p.embeddingStatus;
     entity.createdAt = p.createdAt;
     entity.updatedAt = p.updatedAt;
     return entity;
@@ -42,6 +46,8 @@ export class KnowledgeBaseTypeOrmMapper {
       .withName(entity.name)
       .withDescription(entity.description)
       .withApiKeyHash(entity.apiKeyHash)
+      .withEmbeddingModel(entity.embeddingModel)
+      .withEmbeddingStatus(entity.embeddingStatus)
       .withCreatedAt(entity.createdAt)
       .withUpdatedAt(entity.updatedAt)
       .buildViewModel();

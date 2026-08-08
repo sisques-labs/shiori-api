@@ -2,18 +2,27 @@ import { DateValueObject } from '@sisques-labs/nestjs-kit';
 
 import { KnowledgeBaseApiKeyHashValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-api-key-hash/knowledge-base-api-key-hash.value-object';
 import { KnowledgeBaseDescriptionValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-description/knowledge-base-description.value-object';
+import { KnowledgeBaseEmbeddingModelValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-embedding-model/knowledge-base-embedding-model.value-object';
+import { KnowledgeBaseEmbeddingStatusValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-embedding-status/knowledge-base-embedding-status.value-object';
 import { KnowledgeBaseIdValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-id/knowledge-base-id.value-object';
 import { KnowledgeBaseNameValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-name/knowledge-base-name.value-object';
 
 import { KnowledgeBaseAggregate } from './knowledge-base.aggregate';
 
-function buildAggregate(): KnowledgeBaseAggregate {
+function buildAggregate(
+  embeddingModel = 'text-embedding-3-small',
+  embeddingStatus = 'READY',
+): KnowledgeBaseAggregate {
   const now = new Date();
   return new KnowledgeBaseAggregate({
     id: KnowledgeBaseIdValueObject.generate() as KnowledgeBaseIdValueObject,
     name: new KnowledgeBaseNameValueObject('Docs'),
     description: null,
     apiKeyHash: new KnowledgeBaseApiKeyHashValueObject('a'.repeat(64)),
+    embeddingModel: new KnowledgeBaseEmbeddingModelValueObject(embeddingModel),
+    embeddingStatus: new KnowledgeBaseEmbeddingStatusValueObject(
+      embeddingStatus,
+    ),
     createdAt: new DateValueObject(now),
     updatedAt: new DateValueObject(now),
   });
@@ -120,9 +129,73 @@ describe('KnowledgeBaseAggregate', () => {
       id: knowledgeBase.id.value,
       name: knowledgeBase.name.value,
       description: knowledgeBase.description?.value ?? null,
+      embeddingModel: knowledgeBase.embeddingModel.value,
+      embeddingStatus: knowledgeBase.embeddingStatus.value,
       createdAt: knowledgeBase.createdAt.value,
       updatedAt: knowledgeBase.updatedAt.value,
     });
     expect(rotated.data).not.toHaveProperty('apiKeyHash');
+  });
+
+  describe('changeEmbeddingModel()', () => {
+    it('no-ops when the new model equals the current one', () => {
+      const knowledgeBase = buildAggregate('text-embedding-3-small', 'READY');
+
+      knowledgeBase.changeEmbeddingModel(
+        new KnowledgeBaseEmbeddingModelValueObject('text-embedding-3-small'),
+      );
+
+      expect(knowledgeBase.embeddingStatus.value).toBe('READY');
+      expect(knowledgeBase.getUncommittedEvents()).toHaveLength(0);
+    });
+
+    it('flips to REEMBEDDING and emits KnowledgeBaseEmbeddingModelChangeRequested for a different model', () => {
+      const knowledgeBase = buildAggregate('text-embedding-3-small', 'READY');
+
+      knowledgeBase.changeEmbeddingModel(
+        new KnowledgeBaseEmbeddingModelValueObject('nomic-embed-text'),
+      );
+
+      expect(knowledgeBase.embeddingModel.value).toBe('nomic-embed-text');
+      expect(knowledgeBase.embeddingStatus.value).toBe('REEMBEDDING');
+
+      const events = knowledgeBase.getUncommittedEvents();
+      expect(events).toHaveLength(1);
+      const event = events[0] as any;
+      expect(event.constructor.name).toBe(
+        'KnowledgeBaseEmbeddingModelChangeRequestedEvent',
+      );
+      expect(event.data).toEqual({
+        knowledgeBaseId: knowledgeBase.id.value,
+        previousModel: 'text-embedding-3-small',
+        newModel: 'nomic-embed-text',
+      });
+    });
+  });
+
+  describe('completeReembedding()', () => {
+    it('sets embeddingStatus back to READY', () => {
+      const knowledgeBase = buildAggregate(
+        'text-embedding-3-small',
+        'REEMBEDDING',
+      );
+
+      knowledgeBase.completeReembedding();
+
+      expect(knowledgeBase.embeddingStatus.value).toBe('READY');
+    });
+  });
+
+  describe('failReembedding()', () => {
+    it('sets embeddingStatus to FAILED', () => {
+      const knowledgeBase = buildAggregate(
+        'text-embedding-3-small',
+        'REEMBEDDING',
+      );
+
+      knowledgeBase.failReembedding('provider timeout');
+
+      expect(knowledgeBase.embeddingStatus.value).toBe('FAILED');
+    });
   });
 });
