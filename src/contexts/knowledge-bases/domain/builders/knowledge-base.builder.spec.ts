@@ -18,6 +18,7 @@ describe('KnowledgeBaseBuilder', () => {
       .withId(UuidValueObject.generate().value)
       .withName('Docs')
       .withApiKeyHash('a'.repeat(64))
+      .withEmbeddingModel('text-embedding-3-small')
       .withCreatedAt(now)
       .withUpdatedAt(now);
   }
@@ -39,6 +40,29 @@ describe('KnowledgeBaseBuilder', () => {
       .withDescription('Internal')
       .build();
     expect(knowledgeBase.description?.value).toBe('Internal');
+  });
+
+  it('defaults embeddingStatus to READY', () => {
+    const knowledgeBase = withValidFields(builder).build();
+    expect(knowledgeBase.embeddingStatus.value).toBe('READY');
+  });
+
+  it('accepts an explicit embeddingStatus', () => {
+    const knowledgeBase = withValidFields(builder)
+      .withEmbeddingStatus('REEMBEDDING')
+      .build();
+    expect(knowledgeBase.embeddingStatus.value).toBe('REEMBEDDING');
+  });
+
+  it('throws when embeddingModel is missing', () => {
+    const b = new KnowledgeBaseBuilder()
+      .withId(UuidValueObject.generate().value)
+      .withName('Docs')
+      .withApiKeyHash('a'.repeat(64))
+      .withCreatedAt(new Date())
+      .withUpdatedAt(new Date());
+
+    expect(() => b.build()).toThrow(FieldIsRequiredException);
   });
 
   it('throws when name is missing', () => {

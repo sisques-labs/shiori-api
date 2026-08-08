@@ -1,6 +1,9 @@
 import { EventBus } from '@nestjs/cqrs';
 
+import { IEmbeddingModelValidationPort } from '@contexts/knowledge-bases/application/ports/embedding-model-validation.port';
+import { AssertEmbeddingModelIsValidService } from '@contexts/knowledge-bases/application/services/write/assert-embedding-model-is-valid/assert-embedding-model-is-valid.service';
 import { KnowledgeBaseBuilder } from '@contexts/knowledge-bases/domain/builders/knowledge-base.builder';
+import { InvalidKnowledgeBaseEmbeddingModelException } from '@contexts/knowledge-bases/domain/exceptions/invalid-knowledge-base-embedding-model.exception';
 import { IKnowledgeBaseWriteRepository } from '@contexts/knowledge-bases/domain/repositories/write/knowledge-base-write.repository';
 import { GenerateApiKeyService } from '@contexts/knowledge-bases/application/services/write/generate-api-key/generate-api-key.service';
 import { IHashApiKeyPort } from '@contexts/knowledge-bases/application/ports/hash-api-key.port';
@@ -13,6 +16,8 @@ describe('CreateKnowledgeBaseCommandHandler', () => {
   let writeRepository: jest.Mocked<IKnowledgeBaseWriteRepository>;
   let eventBus: jest.Mocked<EventBus>;
   let hashApiKey: IHashApiKeyPort;
+  let embeddingModelValidation: jest.Mocked<IEmbeddingModelValidationPort>;
+  let assertEmbeddingModelIsValid: AssertEmbeddingModelIsValidService;
   let handler: CreateKnowledgeBaseCommandHandler;
 
   beforeEach(() => {
@@ -27,28 +32,41 @@ describe('CreateKnowledgeBaseCommandHandler', () => {
       hash: (rawKey: string) =>
         Promise.resolve(new HashApiKeyService().execute(rawKey)),
     };
+    embeddingModelValidation = { isValid: jest.fn().mockResolvedValue(true) };
+    assertEmbeddingModelIsValid = new AssertEmbeddingModelIsValidService(
+      embeddingModelValidation,
+    );
 
     handler = new CreateKnowledgeBaseCommandHandler(
       writeRepository,
       new KnowledgeBaseBuilder(),
       new GenerateApiKeyService(),
       hashApiKey,
+      assertEmbeddingModelIsValid,
       eventBus,
     );
   });
 
   it('saves the aggregate with a hash, never the raw key', async () => {
-    const command = new CreateKnowledgeBaseCommand({ name: 'Docs' });
+    const command = new CreateKnowledgeBaseCommand({
+      name: 'Docs',
+      embeddingModel: 'text-embedding-3-small',
+    });
 
     await handler.execute(command);
 
     expect(writeRepository.save).toHaveBeenCalledTimes(1);
     const savedAggregate = writeRepository.save.mock.calls[0][0];
     expect(savedAggregate.apiKeyHash.value).toMatch(/^[0-9a-f]{64}$/);
+    expect(savedAggregate.embeddingModel.value).toBe('text-embedding-3-small');
+    expect(savedAggregate.embeddingStatus.value).toBe('READY');
   });
 
   it('returns the plaintext apiKey in the result', async () => {
-    const command = new CreateKnowledgeBaseCommand({ name: 'Docs' });
+    const command = new CreateKnowledgeBaseCommand({
+      name: 'Docs',
+      embeddingModel: 'text-embedding-3-small',
+    });
 
     const result = await handler.execute(command);
 
@@ -57,7 +75,10 @@ describe('CreateKnowledgeBaseCommandHandler', () => {
   });
 
   it('hashes the returned apiKey to the persisted hash', async () => {
-    const command = new CreateKnowledgeBaseCommand({ name: 'Docs' });
+    const command = new CreateKnowledgeBaseCommand({
+      name: 'Docs',
+      embeddingModel: 'text-embedding-3-small',
+    });
     const hashService = new HashApiKeyService();
 
     const result = await handler.execute(command);
@@ -66,5 +87,18 @@ describe('CreateKnowledgeBaseCommandHandler', () => {
     expect(savedAggregate.apiKeyHash.value).toBe(
       hashService.execute(result.apiKey),
     );
+  });
+
+  it('rejects an unknown embedding model before touching the aggregate', async () => {
+    embeddingModelValidation.isValid.mockResolvedValue(false);
+    const command = new CreateKnowledgeBaseCommand({
+      name: 'Docs',
+      embeddingModel: 'not-a-real-model',
+    });
+
+    await expect(handler.execute(command)).rejects.toBeInstanceOf(
+      InvalidKnowledgeBaseEmbeddingModelException,
+    );
+    expect(writeRepository.save).not.toHaveBeenCalled();
   });
 });

@@ -14,4 +14,10 @@ export interface IChunkSourceItem {
  */
 export interface IChunkSourcePort {
   findByDocumentId(documentId: string): Promise<IChunkSourceItem[]>;
+  /**
+   * Enumerates every document id for a Knowledge Base — needed by the
+   * re-embed pipeline (`ReembedKnowledgeBaseProcessor`), unlike the normal
+   * embed pipeline, which only ever needs one document's chunks at a time.
+   */
+  findKnowledgeBaseDocumentIds(knowledgeBaseId: string): Promise<string[]>;
 }

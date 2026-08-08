@@ -8,8 +8,12 @@ import { KnowledgeBaseNameChangedEvent } from '@contexts/knowledge-bases/domain/
 import { KnowledgeBaseUpdatedEvent } from '@contexts/knowledge-bases/domain/events/knowledge-base-updated/knowledge-base-updated.event';
 import { IKnowledgeBase } from '@contexts/knowledge-bases/domain/interfaces/knowledge-base.interface';
 import { IKnowledgeBasePrimitives } from '@contexts/knowledge-bases/domain/primitives/knowledge-base.primitives';
+import { KnowledgeBaseEmbeddingModelChangeRequestedEvent } from '@contexts/knowledge-bases/domain/events/knowledge-base-embedding-model-change-requested/knowledge-base-embedding-model-change-requested.event';
+import { KnowledgeBaseEmbeddingStatusEnum } from '@contexts/knowledge-bases/domain/enums/knowledge-base-embedding-status.enum';
 import { KnowledgeBaseApiKeyHashValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-api-key-hash/knowledge-base-api-key-hash.value-object';
 import { KnowledgeBaseDescriptionValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-description/knowledge-base-description.value-object';
+import { KnowledgeBaseEmbeddingModelValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-embedding-model/knowledge-base-embedding-model.value-object';
+import { KnowledgeBaseEmbeddingStatusValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-embedding-status/knowledge-base-embedding-status.value-object';
 import { KnowledgeBaseIdValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-id/knowledge-base-id.value-object';
 import { KnowledgeBaseNameValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-name/knowledge-base-name.value-object';
 
@@ -18,6 +22,8 @@ export class KnowledgeBaseAggregate extends BaseAggregate {
   private _name: KnowledgeBaseNameValueObject;
   private _description: KnowledgeBaseDescriptionValueObject | null;
   private _apiKeyHash: KnowledgeBaseApiKeyHashValueObject;
+  private _embeddingModel: KnowledgeBaseEmbeddingModelValueObject;
+  private _embeddingStatus: KnowledgeBaseEmbeddingStatusValueObject;
 
   constructor(props: IKnowledgeBase) {
     super(props.createdAt, props.updatedAt);
@@ -25,6 +31,8 @@ export class KnowledgeBaseAggregate extends BaseAggregate {
     this._name = props.name;
     this._description = props.description;
     this._apiKeyHash = props.apiKeyHash;
+    this._embeddingModel = props.embeddingModel;
+    this._embeddingStatus = props.embeddingStatus;
   }
 
   public create(): void {
@@ -160,12 +168,79 @@ export class KnowledgeBaseAggregate extends BaseAggregate {
     );
   }
 
+  /**
+   * No-ops (no event, no state change) if `newModel` equals the current
+   * `embeddingModel`. Otherwise flips the model pointer immediately and
+   * moves the Knowledge Base into `REEMBEDDING` — nothing reads
+   * `embeddingModel` for search purposes while `embeddingStatus !== READY`,
+   * so there is no window where a stale pointer could route a search
+   * incorrectly (see design.md).
+   */
+  public changeEmbeddingModel(
+    newModel: KnowledgeBaseEmbeddingModelValueObject,
+  ): void {
+    if (this._embeddingModel.equals(newModel)) return;
+
+    const previousModel = this._embeddingModel.value;
+    this._embeddingModel = newModel;
+    this._embeddingStatus = new KnowledgeBaseEmbeddingStatusValueObject(
+      KnowledgeBaseEmbeddingStatusEnum.REEMBEDDING,
+    );
+    this.touch();
+
+    this.apply(
+      new KnowledgeBaseEmbeddingModelChangeRequestedEvent(
+        {
+          aggregateRootId: this._id.value,
+          aggregateRootType: KnowledgeBaseAggregate.name,
+          entityId: this._id.value,
+          entityType: KnowledgeBaseAggregate.name,
+          eventType: KnowledgeBaseEmbeddingModelChangeRequestedEvent.name,
+        },
+        {
+          knowledgeBaseId: this._id.value,
+          previousModel,
+          newModel: newModel.value,
+        },
+      ),
+    );
+  }
+
+  /**
+   * Internal-only mutator — only ever invoked by
+   * `CompleteKnowledgeBaseReembeddingCommandHandler`, dispatched by
+   * `embeddings`' re-embed processor on success. No public command wraps
+   * it directly.
+   */
+  public completeReembedding(): void {
+    this._embeddingStatus = new KnowledgeBaseEmbeddingStatusValueObject(
+      KnowledgeBaseEmbeddingStatusEnum.READY,
+    );
+    this.touch();
+  }
+
+  /**
+   * Internal-only mutator — only ever invoked by
+   * `FailKnowledgeBaseReembeddingCommandHandler`, dispatched by
+   * `embeddings`' re-embed processor on failure. `reason` is accepted for
+   * parity with the command/spec shape and future logging/observability,
+   * but is not currently persisted on the aggregate itself.
+   */
+  public failReembedding(_reason: string): void {
+    this._embeddingStatus = new KnowledgeBaseEmbeddingStatusValueObject(
+      KnowledgeBaseEmbeddingStatusEnum.FAILED,
+    );
+    this.touch();
+  }
+
   public toPrimitives(): IKnowledgeBasePrimitives {
     return {
       id: this._id.value,
       name: this._name.value,
       description: this._description?.value ?? null,
       apiKeyHash: this._apiKeyHash.value,
+      embeddingModel: this._embeddingModel.value,
+      embeddingStatus: this._embeddingStatus.value,
       createdAt: this.createdAt.value,
       updatedAt: this.updatedAt.value,
     };
@@ -185,5 +260,13 @@ export class KnowledgeBaseAggregate extends BaseAggregate {
 
   get apiKeyHash(): KnowledgeBaseApiKeyHashValueObject {
     return this._apiKeyHash;
+  }
+
+  get embeddingModel(): KnowledgeBaseEmbeddingModelValueObject {
+    return this._embeddingModel;
+  }
+
+  get embeddingStatus(): KnowledgeBaseEmbeddingStatusValueObject {
+    return this._embeddingStatus;
   }
 }

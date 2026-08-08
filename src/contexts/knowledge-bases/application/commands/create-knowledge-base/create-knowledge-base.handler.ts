@@ -8,6 +8,7 @@ import {
   KNOWLEDGE_BASE_WRITE_REPOSITORY,
   IKnowledgeBaseWriteRepository,
 } from '@contexts/knowledge-bases/domain/repositories/write/knowledge-base-write.repository';
+import { AssertEmbeddingModelIsValidService } from '@contexts/knowledge-bases/application/services/write/assert-embedding-model-is-valid/assert-embedding-model-is-valid.service';
 import { GenerateApiKeyService } from '@contexts/knowledge-bases/application/services/write/generate-api-key/generate-api-key.service';
 import {
   HASH_API_KEY_PORT,
@@ -36,6 +37,7 @@ export class CreateKnowledgeBaseCommandHandler
     private readonly generateApiKey: GenerateApiKeyService,
     @Inject(HASH_API_KEY_PORT)
     private readonly hashApiKey: IHashApiKeyPort,
+    private readonly assertEmbeddingModelIsValid: AssertEmbeddingModelIsValidService,
     eventBus: EventBus,
   ) {
     super(eventBus);
@@ -44,6 +46,10 @@ export class CreateKnowledgeBaseCommandHandler
   async execute(
     command: CreateKnowledgeBaseCommand,
   ): Promise<CreateKnowledgeBaseResult> {
+    await this.assertEmbeddingModelIsValid.execute(
+      command.embeddingModel.value,
+    );
+
     const now = new Date();
     const id = UuidValueObject.generate().value;
     const apiKey = await this.generateApiKey.execute();
@@ -54,6 +60,7 @@ export class CreateKnowledgeBaseCommandHandler
       .withName(command.name.value)
       .withDescription(command.description?.value ?? null)
       .withApiKeyHash(apiKeyHash)
+      .withEmbeddingModel(command.embeddingModel.value)
       .withCreatedAt(now)
       .withUpdatedAt(now)
       .build();

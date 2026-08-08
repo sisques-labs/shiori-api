@@ -16,6 +16,8 @@ describe('KnowledgeBaseTypeOrmMapper', () => {
     entity.name = 'Docs';
     entity.description = 'Internal docs';
     entity.apiKeyHash = 'a'.repeat(64);
+    entity.embeddingModel = 'text-embedding-3-small';
+    entity.embeddingStatus = 'READY';
     entity.createdAt = new Date();
     entity.updatedAt = new Date();
     return entity;
@@ -29,6 +31,8 @@ describe('KnowledgeBaseTypeOrmMapper', () => {
     expect(aggregate.name.value).toBe(entity.name);
     expect(aggregate.description?.value).toBe(entity.description);
     expect(aggregate.apiKeyHash.value).toBe(entity.apiKeyHash);
+    expect(aggregate.embeddingModel.value).toBe(entity.embeddingModel);
+    expect(aggregate.embeddingStatus.value).toBe(entity.embeddingStatus);
   });
 
   it('maps aggregate to persistence entity', () => {
@@ -41,6 +45,8 @@ describe('KnowledgeBaseTypeOrmMapper', () => {
     expect(persisted.name).toBe(entity.name);
     expect(persisted.description).toBe(entity.description);
     expect(persisted.apiKeyHash).toBe(entity.apiKeyHash);
+    expect(persisted.embeddingModel).toBe(entity.embeddingModel);
+    expect(persisted.embeddingStatus).toBe(entity.embeddingStatus);
   });
 
   it('maps entity to view model', () => {
@@ -50,5 +56,7 @@ describe('KnowledgeBaseTypeOrmMapper', () => {
     expect(viewModel.id).toBe(entity.id);
     expect(viewModel.name).toBe(entity.name);
     expect(viewModel.apiKeyHash).toBe(entity.apiKeyHash);
+    expect(viewModel.embeddingModel).toBe(entity.embeddingModel);
+    expect(viewModel.embeddingStatus).toBe(entity.embeddingStatus);
   });
 });

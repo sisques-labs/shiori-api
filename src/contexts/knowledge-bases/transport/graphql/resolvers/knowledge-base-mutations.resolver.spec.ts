@@ -43,7 +43,10 @@ describe('KnowledgeBaseMutationsResolver', () => {
       updatedAt: new Date(),
     } as any);
 
-    const input: CreateKnowledgeBaseGraphQLDto = { name: 'Docs' };
+    const input: CreateKnowledgeBaseGraphQLDto = {
+      name: 'Docs',
+      embeddingModel: 'text-embedding-3-small',
+    };
     const result = await resolver.createKnowledgeBase(input);
 
     expect(assertViewModelExists.execute).toHaveBeenCalledWith('kb-1');

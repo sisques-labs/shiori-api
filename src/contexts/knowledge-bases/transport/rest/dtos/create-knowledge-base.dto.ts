@@ -13,4 +13,13 @@ export class CreateKnowledgeBaseDto {
   @IsString()
   @MaxLength(2000)
   description?: string;
+
+  @ApiProperty({
+    description:
+      'Embedding model id, picked from GET /embeddings/models (e.g. "text-embedding-3-small")',
+  })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  embeddingModel!: string;
 }

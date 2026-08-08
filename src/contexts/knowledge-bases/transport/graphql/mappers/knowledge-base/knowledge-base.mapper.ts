@@ -14,6 +14,8 @@ export class KnowledgeBaseGraphQLMapper {
     dto.id = knowledgeBaseViewModel.id;
     dto.name = knowledgeBaseViewModel.name;
     dto.description = knowledgeBaseViewModel.description;
+    dto.embeddingModel = knowledgeBaseViewModel.embeddingModel;
+    dto.embeddingStatus = knowledgeBaseViewModel.embeddingStatus;
     dto.createdAt = knowledgeBaseViewModel.createdAt;
     dto.updatedAt = knowledgeBaseViewModel.updatedAt;
     return dto;

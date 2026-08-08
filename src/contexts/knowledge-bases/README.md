@@ -15,13 +15,76 @@ using the cross-cutting tenancy mechanism this context introduces.
 | `name` | string | 1–100 chars |
 | `description` | string \| null | max 2000 chars |
 | `apiKeyHash` | string | SHA-256 hex digest of the current active key; never the plaintext |
+| `embeddingModel` | string | Free-form model id; validated against `embeddings`' registry at the application layer, not by this context's own value object (see "Embedding model" below) |
+| `embeddingStatus` | enum (`READY`\|`REEMBEDDING`\|`FAILED`) | Defaults to `READY` on creation |
+
+## Embedding model
+
+Each Knowledge Base picks its own embedding model at creation time and can
+change it later — the model is tenant configuration here, not a global
+`.env` value (see `embeddings/README.md`'s "Model registry"). Changing it
+triggers a blocking re-embed of every document owned by this Knowledge
+Base, run entirely by `embeddings`.
+
+### State machine
+
+```
+        CreateKnowledgeBase
+               │
+               ▼
+             READY ───────────────┐
+               │  ChangeKnowledgeBaseEmbeddingModel
+               │  (different model)
+               ▼                  │
+         REEMBEDDING              │ ChangeKnowledgeBaseEmbeddingModel
+          │        │              │ (same model → no-op, no transition)
+ Complete │        │ Fail         │
+ (success)│        │ (error)      │
+          ▼        ▼              │
+        READY    FAILED ──────────┘
+                    │  ChangeKnowledgeBaseEmbeddingModel (retry)
+                    ▼
+              REEMBEDDING
+```
+
+- While `REEMBEDDING`: `retrieval`/`embeddings` search is rejected for this
+  Knowledge Base (HTTP 409, `EmbeddingSearchNotReadyException`,
+  thrown and mapped inside `embeddings`); a second
+  `ChangeKnowledgeBaseEmbeddingModel` call with a *different* model is
+  rejected (`KnowledgeBaseReembeddingInProgressException`, 409) — no
+  concurrent re-embed runs. A call with the *same* model the Knowledge Base
+  is already re-embedding to is still a no-op (checked before the
+  in-progress check), so retriggering is always safe.
+- `FAILED` is a normal, retryable state — calling
+  `ChangeKnowledgeBaseEmbeddingModel` again (same or different model) is
+  accepted and starts a fresh, clean re-embed attempt.
+- The model pointer (`embeddingModel`) flips **immediately** on
+  `changeEmbeddingModel()`, not after the re-embed completes — safe because
+  nothing reads `embeddingModel` for search purposes while
+  `embeddingStatus !== READY`.
+- `completeReembedding()`/`failReembedding(reason)` are internal-only
+  aggregate mutators — never called directly from a public command, only
+  from `CompleteKnowledgeBaseReembeddingCommandHandler`/
+  `FailKnowledgeBaseReembeddingCommandHandler` (see "Commands" below),
+  themselves dispatched exclusively by `embeddings`' re-embed processor.
+
+`knowledge-bases` deliberately does **not** import `embeddings`' domain
+types (e.g. `EmbeddingModelValueObject`) — the cross-context boundary rule
+only allows reaching another context's domain/application from
+`infrastructure/adapters/`. This context owns its own "what model string
+did the caller pick" value object (`KnowledgeBaseEmbeddingModelValueObject`,
+a shape-only check); whether that string is a *valid, known* model is
+checked via `IEmbeddingModelValidationPort` below, never by sharing a type.
 
 ## Commands
 
 - `CreateKnowledgeBase` — no auth required (this is the tenant-creation
-  "signup" entry point). Generates a new API key, persists only its hash,
-  returns the **plaintext key in the response — the only time it is ever
-  shown**.
+  "signup" entry point). Requires `embeddingModel`; validates it against
+  `embeddings`' registry via `IEmbeddingModelValidationPort` before
+  constructing the aggregate (unknown model → `InvalidKnowledgeBaseEmbeddingModelException`,
+  400). Generates a new API key, persists only its hash, returns the
+  **plaintext key in the response — the only time it is ever shown**. New
+  Knowledge Bases are created with `embeddingStatus = READY`.
 - `UpdateKnowledgeBase` — auth required; updates `name`/`description` of the
   caller's own knowledge base.
 - `DeleteKnowledgeBase` — auth required; deletes the caller's own knowledge
@@ -30,16 +93,51 @@ using the cross-cutting tenancy mechanism this context introduces.
 - `RotateKnowledgeBaseApiKey` — auth required; issues a new key and
   invalidates the previous one immediately (no overlap window). Returns the
   new plaintext key once.
+- `ChangeKnowledgeBaseEmbeddingModel` — auth required (`PATCH
+  /knowledge-bases/me/embedding-model`, GraphQL mutation
+  `changeKnowledgeBaseEmbeddingModel`, both resolving the caller's own
+  Knowledge Base the same way every other authenticated route in this
+  context does — see "Why every route is `/me`" below; the design.md draft
+  of this change described a generic `:id`/`id`-argument shape, but this
+  context's established confused-deputy-avoidance convention takes
+  precedence). Validates the new model, no-ops on the same model, rejects
+  with 409 if already `REEMBEDDING` for a genuinely different model,
+  otherwise calls `aggregate.changeEmbeddingModel(...)`, saves, and
+  publishes `KnowledgeBaseEmbeddingModelChangeRequestedEvent`.
+- `CompleteKnowledgeBaseReembedding` — **internal only**, no transport
+  surface. Dispatched exclusively by `embeddings`' re-embed processor (via
+  `IKnowledgeBaseReembeddingStatusPort` on that side) on success. Sets
+  `embeddingStatus = READY`.
+- `FailKnowledgeBaseReembedding` — **internal only**, no transport surface.
+  Dispatched exclusively by `embeddings`' re-embed processor on failure.
+  Sets `embeddingStatus = FAILED`.
 
 ## Queries
 
 - `KnowledgeBaseFindById` — exposed as the `knowledgeBase` GraphQL query and
   `GET /knowledge-bases/me` REST route. Always resolves the **caller's own**
   knowledge base — takes no `id` argument at the transport layer, only the
-  `knowledgeBaseId` set by the guard.
+  `knowledgeBaseId` set by the guard. Its `KnowledgeBaseViewModel` includes
+  `embeddingModel`/`embeddingStatus`; also consumed cross-context by
+  `embeddings`' `IKnowledgeBaseEmbeddingConfigPort` adapter.
 - `KnowledgeBaseFindByApiKeyHash` — **internal only**, no transport surface.
   Dispatched exclusively by `KnowledgeBaseApiKeyGuard` to resolve the
   `X-API-Key` header to a tenant.
+
+## Cross-context: embedding model validation
+
+```ts
+export interface IEmbeddingModelValidationPort {
+  isValid(modelId: string): Promise<boolean>;
+}
+```
+
+Implemented by `infrastructure/adapters/embedding-model-validation.adapter.ts`,
+dispatching `embeddings`' internal `EmbeddingModelExistsQuery` through the
+global `QueryBus` — never a direct import of `embeddings`' module or domain
+types outside `infrastructure/adapters/`. Used by both
+`CreateKnowledgeBaseCommandHandler` and
+`ChangeKnowledgeBaseEmbeddingModelCommandHandler`.
 
 ## Auth: `KnowledgeBaseApiKeyGuard` (`src/core/tenancy/`)
 
@@ -113,6 +211,11 @@ before "fixing" either of these:
 
 ## Database
 
-Table: `knowledge_bases` (migration `1780000000001-CreateKnowledgeBases`).
+Table: `knowledge_bases` (migration `1780000000001-CreateKnowledgeBases`,
+altered by `1780000000004-AddEmbeddingConfigToKnowledgeBases` to add
+`embedding_model varchar(100) NOT NULL` and
+`embedding_status varchar(20) NOT NULL DEFAULT 'READY'`; the migration
+backfills any pre-existing rows with `'text-embedding-3-small'` — the
+previous implicit global default — before making the column `NOT NULL`).
 Unique index on `api_key_hash` — both a business invariant and the guard's
 hot lookup path (runs on every authenticated request).
