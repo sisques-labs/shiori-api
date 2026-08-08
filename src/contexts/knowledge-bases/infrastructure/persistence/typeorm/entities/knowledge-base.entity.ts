@@ -27,6 +27,23 @@ export class KnowledgeBaseTypeOrmEntity {
   })
   apiKeyHash!: string;
 
+  @Column({
+    name: 'embedding_model',
+    type: 'varchar',
+    length: 100,
+    nullable: false,
+  })
+  embeddingModel!: string;
+
+  @Column({
+    name: 'embedding_status',
+    type: 'varchar',
+    length: 20,
+    nullable: false,
+    default: 'READY',
+  })
+  embeddingStatus!: string;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

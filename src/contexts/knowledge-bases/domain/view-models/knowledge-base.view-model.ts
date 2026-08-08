@@ -11,11 +11,15 @@ export class KnowledgeBaseViewModel extends BaseViewModel {
   public readonly name: string;
   public readonly description: string | null;
   public readonly apiKeyHash: string;
+  public readonly embeddingModel: string;
+  public readonly embeddingStatus: string;
 
   constructor(props: IKnowledgeBasePrimitives) {
     super(props.id, props.createdAt, props.updatedAt);
     this.name = props.name;
     this.description = props.description;
     this.apiKeyHash = props.apiKeyHash;
+    this.embeddingModel = props.embeddingModel;
+    this.embeddingStatus = props.embeddingStatus;
   }
 }
