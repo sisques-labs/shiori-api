@@ -124,7 +124,7 @@ export interface IEmbeddingWriteRepository {
 }
 
 export interface IEmbeddingReadRepository {
-  search(vector: number[], topK: number, dimensions: number): Promise<IEmbeddingSearchResult[]>;
+  search(vector: number[], topK: number, dimensions: number, model: string): Promise<IEmbeddingSearchResult[]>;
 }
 ```
 
@@ -146,7 +146,13 @@ export interface IEmbeddingReadRepository {
   possibly sharing a vector table) untouched.
 - **`search`** resolves `dimensions` to pick which
   `embedding_vectors_{dimension}` table to `JOIN` against before the
-  `ORDER BY ... <=> ...` runs.
+  `ORDER BY ... <=> ...` runs, and filters by `model` on top of that: since
+  multiple models can share a dimension count (no migration needed to add
+  one — see the model registry doc comment), more than one model's rows can
+  exist in the same `embedding_vectors_{dimension}` table for the same
+  Knowledge Base. Cosine distance across two different models' vector
+  spaces is meaningless, so scoping by dimension and `knowledge_base_id`
+  alone isn't enough.
 
 ## Embedding pipeline
 

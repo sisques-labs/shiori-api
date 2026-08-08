@@ -73,6 +73,7 @@ export class EmbeddingTypeOrmReadRepository
     vector: number[],
     topK: number,
     dimensions: number,
+    model: string,
   ): Promise<IEmbeddingSearchResult[]> {
     const vectorEntityClass =
       EMBEDDING_VECTOR_ENTITIES_BY_DIMENSION.get(dimensions);
@@ -100,6 +101,7 @@ export class EmbeddingTypeOrmReadRepository
       .where(`${ALIAS}.knowledge_base_id = :knowledgeBaseId`, {
         knowledgeBaseId,
       })
+      .andWhere(`${ALIAS}.model = :model`, { model })
       .orderBy(`${VECTOR_ALIAS}.embedding <=> :queryVector`, 'ASC')
       .setParameter('queryVector', queryVector)
       .limit(topK)
