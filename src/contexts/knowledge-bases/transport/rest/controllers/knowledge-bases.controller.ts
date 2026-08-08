@@ -52,7 +52,11 @@ export class KnowledgeBasesController {
   @Post()
   @SkipKnowledgeBaseAuth()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Create a knowledge base (no auth required)' })
+  @ApiOperation({
+    summary: 'Create a knowledge base (no auth required)',
+    description:
+      'Returns an `apiKey`. Use it via the "Authorize" button (x-api-key) to call the other endpoints.',
+  })
   @ApiResponse({ status: 201, type: KnowledgeBaseCreatedRestResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid input' })
   async createKnowledgeBase(

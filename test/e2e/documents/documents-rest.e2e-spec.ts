@@ -17,7 +17,7 @@ describe('Documents REST (e2e)', () => {
   });
 
   async function createKnowledgeBase(name = 'Docs KB') {
-    const res = await ctx.http().post('/api/knowledge-bases').send({ name });
+    const res = await ctx.http().post('/api/v1/knowledge-bases').send({ name });
     return res.body as { id: string; apiKey: string; name: string };
   }
 
@@ -27,12 +27,12 @@ describe('Documents REST (e2e)', () => {
   ) {
     return ctx
       .http()
-      .post('/api/documents')
+      .post('/api/v1/documents')
       .set('X-API-Key', apiKey)
       .send(body);
   }
 
-  it('POST /api/documents creates a document and returns 202 with PENDING status', async () => {
+  it('POST /api/v1/documents creates a document and returns 202 with PENDING status', async () => {
     const kb = await createKnowledgeBase();
 
     const res = await createDocument(kb.apiKey, {
@@ -45,16 +45,16 @@ describe('Documents REST (e2e)', () => {
     expect(res.body.id).toBeDefined();
   });
 
-  it('POST /api/documents without an API key returns 401', async () => {
+  it('POST /api/v1/documents without an API key returns 401', async () => {
     const res = await ctx
       .http()
-      .post('/api/documents')
+      .post('/api/v1/documents')
       .send({ title: 'My Doc', content: 'Some content' });
 
     expect(res.status).toBe(401);
   });
 
-  it('GET /api/documents/:id returns the created document', async () => {
+  it('GET /api/v1/documents/:id returns the created document', async () => {
     const kb = await createKnowledgeBase();
     const created = await createDocument(kb.apiKey, {
       title: 'My Doc',
@@ -63,7 +63,7 @@ describe('Documents REST (e2e)', () => {
 
     const res = await ctx
       .http()
-      .get(`/api/documents/${created.body.id}`)
+      .get(`/api/v1/documents/${created.body.id}`)
       .set('X-API-Key', kb.apiKey);
 
     expect(res.status).toBe(200);
@@ -72,18 +72,18 @@ describe('Documents REST (e2e)', () => {
     expect(res.body.content).toBe('Some content');
   });
 
-  it('GET /api/documents/:id for an unknown id returns 404', async () => {
+  it('GET /api/v1/documents/:id for an unknown id returns 404', async () => {
     const kb = await createKnowledgeBase();
 
     const res = await ctx
       .http()
-      .get('/api/documents/00000000-0000-4000-8000-000000000000')
+      .get('/api/v1/documents/00000000-0000-4000-8000-000000000000')
       .set('X-API-Key', kb.apiKey);
 
     expect(res.status).toBe(404);
   });
 
-  it('POST /api/documents with oversized content returns 413', async () => {
+  it('POST /api/v1/documents with oversized content returns 413', async () => {
     const kb = await createKnowledgeBase();
     // DOCUMENTS_MAX_CONTENT_LENGTH defaults to 500000 when unset.
     const maxContentLength = parseInt(
@@ -100,7 +100,7 @@ describe('Documents REST (e2e)', () => {
     expect(res.status).toBe(413);
   });
 
-  it('GET /api/documents lists documents scoped to the caller’s knowledge base', async () => {
+  it('GET /api/v1/documents lists documents scoped to the caller’s knowledge base', async () => {
     const kbOne = await createKnowledgeBase('KB One');
     const kbTwo = await createKnowledgeBase('KB Two');
 
@@ -109,7 +109,7 @@ describe('Documents REST (e2e)', () => {
 
     const res = await ctx
       .http()
-      .get('/api/documents')
+      .get('/api/v1/documents')
       .set('X-API-Key', kbOne.apiKey);
 
     expect(res.status).toBe(200);
@@ -117,7 +117,7 @@ describe('Documents REST (e2e)', () => {
     expect(res.body.items[0].title).toBe('KB One Doc');
   });
 
-  it('DELETE /api/documents/:id removes the document; a re-fetch returns 404', async () => {
+  it('DELETE /api/v1/documents/:id removes the document; a re-fetch returns 404', async () => {
     const kb = await createKnowledgeBase();
     const created = await createDocument(kb.apiKey, {
       title: 'To delete',
@@ -126,13 +126,13 @@ describe('Documents REST (e2e)', () => {
 
     const deleteRes = await ctx
       .http()
-      .delete(`/api/documents/${created.body.id}`)
+      .delete(`/api/v1/documents/${created.body.id}`)
       .set('X-API-Key', kb.apiKey);
     expect(deleteRes.status).toBe(204);
 
     const getRes = await ctx
       .http()
-      .get(`/api/documents/${created.body.id}`)
+      .get(`/api/v1/documents/${created.body.id}`)
       .set('X-API-Key', kb.apiKey);
     expect(getRes.status).toBe(404);
 

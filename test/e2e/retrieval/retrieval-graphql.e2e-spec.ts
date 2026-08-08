@@ -77,7 +77,7 @@ describe('Retrieval GraphQL (e2e)', () => {
   ) {
     const res = await ctx
       .http()
-      .post('/api/knowledge-bases')
+      .post('/api/v1/knowledge-bases')
       .send({ name, embeddingModel });
     return res.body as { id: string; apiKey: string; name: string };
   }
