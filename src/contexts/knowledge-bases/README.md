@@ -81,7 +81,7 @@ checked via `IEmbeddingModelValidationPort` below, never by sharing a type.
 - `CreateKnowledgeBase` — no auth required (this is the tenant-creation
   "signup" entry point). Requires `embeddingModel`; validates it against
   `embeddings`' registry via `IEmbeddingModelValidationPort` before
-  constructing the aggregate (unknown model → `InvalidEmbeddingModelException`,
+  constructing the aggregate (unknown model → `InvalidKnowledgeBaseEmbeddingModelException`,
   400). Generates a new API key, persists only its hash, returns the
   **plaintext key in the response — the only time it is ever shown**. New
   Knowledge Bases are created with `embeddingStatus = READY`.
