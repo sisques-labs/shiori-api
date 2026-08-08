@@ -40,6 +40,8 @@ describe('KnowledgeBaseDeletedListener (embeddings)', () => {
         id: knowledgeBaseId,
         name: 'Docs',
         description: null,
+        embeddingModel: 'text-embedding-3-small',
+        embeddingStatus: 'READY',
         createdAt: new Date(),
         updatedAt: new Date(),
       },
