@@ -31,6 +31,7 @@ import { DocumentDeletedListener } from './infrastructure/adapters/document-dele
 import { KnowledgeBaseDeletedListener } from './infrastructure/adapters/knowledge-base-deleted.listener';
 import { KnowledgeBaseEmbeddingConfigAdapter } from './infrastructure/adapters/knowledge-base-embedding-config.adapter';
 import { KnowledgeBaseEmbeddingModelChangedListener } from './infrastructure/adapters/knowledge-base-embedding-model-changed.listener';
+import { KnowledgeBaseReembeddingRequestedListener } from './infrastructure/adapters/knowledge-base-reembedding-requested.listener';
 import { KnowledgeBaseReembeddingStatusAdapter } from './infrastructure/adapters/knowledge-base-reembedding-status.adapter';
 import { embeddingsConfig } from './infrastructure/config/embeddings.config';
 import { EMBEDDING_VECTOR_ENTITIES_BY_DIMENSION } from './infrastructure/persistence/typeorm/entities/embedding-vector-entity.factory';
@@ -114,6 +115,7 @@ const INFRASTRUCTURE_ADAPTERS = [
   DocumentDeletedListener,
   KnowledgeBaseDeletedListener,
   KnowledgeBaseEmbeddingModelChangedListener,
+  KnowledgeBaseReembeddingRequestedListener,
   ReembedKnowledgeBaseProcessor,
   EmbedDocumentChunksProcessor,
 ];

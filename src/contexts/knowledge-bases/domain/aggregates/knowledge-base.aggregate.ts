@@ -9,6 +9,7 @@ import { KnowledgeBaseUpdatedEvent } from '@contexts/knowledge-bases/domain/even
 import { IKnowledgeBase } from '@contexts/knowledge-bases/domain/interfaces/knowledge-base.interface';
 import { IKnowledgeBasePrimitives } from '@contexts/knowledge-bases/domain/primitives/knowledge-base.primitives';
 import { KnowledgeBaseEmbeddingModelChangeRequestedEvent } from '@contexts/knowledge-bases/domain/events/knowledge-base-embedding-model-change-requested/knowledge-base-embedding-model-change-requested.event';
+import { KnowledgeBaseReembeddingRequestedEvent } from '@contexts/knowledge-bases/domain/events/knowledge-base-reembedding-requested/knowledge-base-reembedding-requested.event';
 import { KnowledgeBaseEmbeddingStatusEnum } from '@contexts/knowledge-bases/domain/enums/knowledge-base-embedding-status.enum';
 import { KnowledgeBaseApiKeyHashValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-api-key-hash/knowledge-base-api-key-hash.value-object';
 import { KnowledgeBaseDescriptionValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-description/knowledge-base-description.value-object';
@@ -201,6 +202,39 @@ export class KnowledgeBaseAggregate extends BaseAggregate {
           knowledgeBaseId: this._id.value,
           previousModel,
           newModel: newModel.value,
+        },
+      ),
+    );
+  }
+
+  /**
+   * Forces a full re-embed of every document under the CURRENT model —
+   * unlike `changeEmbeddingModel()`, this never no-ops on an unchanged
+   * model (there is no "unchanged" case: the model never changes here) and
+   * always moves the Knowledge Base into `REEMBEDDING`. Exists for
+   * recovering from partial/corrupted embedding rows or provider-side drift
+   * without picking a different model. The caller (application layer) is
+   * responsible for rejecting this while already `REEMBEDDING`, same as
+   * `changeEmbeddingModel()`.
+   */
+  public requestReembedding(): void {
+    this._embeddingStatus = new KnowledgeBaseEmbeddingStatusValueObject(
+      KnowledgeBaseEmbeddingStatusEnum.REEMBEDDING,
+    );
+    this.touch();
+
+    this.apply(
+      new KnowledgeBaseReembeddingRequestedEvent(
+        {
+          aggregateRootId: this._id.value,
+          aggregateRootType: KnowledgeBaseAggregate.name,
+          entityId: this._id.value,
+          entityType: KnowledgeBaseAggregate.name,
+          eventType: KnowledgeBaseReembeddingRequestedEvent.name,
+        },
+        {
+          knowledgeBaseId: this._id.value,
+          model: this._embeddingModel.value,
         },
       ),
     );

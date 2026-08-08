@@ -203,16 +203,29 @@ model — see "Repositories" above for why:
 
 ## Re-embedding pipeline
 
-Changing a Knowledge Base's `embeddingModel` (`ChangeKnowledgeBaseEmbeddingModel`,
-owned by `knowledge-bases`) moves it into `embeddingStatus = REEMBEDDING`
-and publishes `KnowledgeBaseEmbeddingModelChangeRequestedEvent`. This
-context reacts to it entirely from `infrastructure/`:
+Two `knowledge-bases` commands drive `embeddingStatus = REEMBEDDING` and
+publish an event this context reacts to entirely from `infrastructure/`:
+
+- `ChangeKnowledgeBaseEmbeddingModel` → `KnowledgeBaseEmbeddingModelChangeRequestedEvent`
+  (`previousModel !== newModel`, handled by
+  `KnowledgeBaseEmbeddingModelChangedListener`).
+- `ReembedKnowledgeBase` → `KnowledgeBaseReembeddingRequestedEvent` — a
+  forced rewrite under the *same* model (recovering from partial/corrupted
+  rows or provider drift, not a model switch), handled by
+  `KnowledgeBaseReembeddingRequestedListener`.
+
+Both listeners enqueue the exact same job shape via
+`IEmbeddingReembedQueuePort.enqueueReembed(knowledgeBaseId, previousModel, newModel)`
+— the forced-reembed case simply calls it with `previousModel === newModel`:
 
 ```
-KnowledgeBaseEmbeddingModelChangeRequestedEvent (from knowledge-bases)
-     ▼
-KnowledgeBaseEmbeddingModelChangedListener (infrastructure/adapters/)
-     └─> IEmbeddingReembedQueuePort.enqueueReembed(knowledgeBaseId, previousModel, newModel)
+KnowledgeBaseEmbeddingModelChangeRequestedEvent          KnowledgeBaseReembeddingRequestedEvent
+  (from knowledge-bases, previousModel !== newModel)        (from knowledge-bases, same model)
+     ▼                                                          ▼
+KnowledgeBaseEmbeddingModelChangedListener                KnowledgeBaseReembeddingRequestedListener
+     └─────────────────┬────────────────────────────────────────┘
+                        ▼
+     IEmbeddingReembedQueuePort.enqueueReembed(knowledgeBaseId, previousModel, newModel)
               │  same "embeddings" BullMQ queue as the embed pipeline, new job name
               ▼
 ReembedKnowledgeBaseProcessor.process(job)   — routed to by job.name, see below
@@ -225,10 +238,14 @@ knowledgeBaseContext.run(knowledgeBaseId, async () => {
      │     ├─ chunks = ChunkSourcePort.findByDocumentId(documentId)
      │     ├─ vectors = EmbeddingPort.embedBatch(texts, newModel)
      │     └─ EmbeddingWriteRepo.saveMany(built EmbeddingAggregate[], newDimensions)
-     ├─ EmbeddingWriteRepo.deleteByKnowledgeBaseIdAndModel(knowledgeBaseId, previousModel)
+     ├─ if previousModel !== newModel:
+     │     EmbeddingWriteRepo.deleteByKnowledgeBaseIdAndModel(knowledgeBaseId, previousModel)
      │     # only after every document succeeded — avoids a partial state
      │     # where some documents are searchable and others have zero
-     │     # embeddings if the job fails partway
+     │     # embeddings if the job fails partway. Skipped for a forced
+     │     # same-model re-embed: the rows just written above ARE the
+     │     # "previous model"'s rows, so this would otherwise delete what
+     │     # was just re-embedded.
      └─ on success: IKnowledgeBaseReembeddingStatusPort.complete(knowledgeBaseId)
         on any error: ...fail(knowledgeBaseId, reason), then rethrow
 })

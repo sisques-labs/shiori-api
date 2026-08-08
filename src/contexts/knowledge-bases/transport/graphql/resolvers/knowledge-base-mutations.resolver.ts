@@ -10,6 +10,7 @@ import { ChangeKnowledgeBaseEmbeddingModelCommand } from '@contexts/knowledge-ba
 import { CreateKnowledgeBaseCommand } from '@contexts/knowledge-bases/application/commands/create-knowledge-base/create-knowledge-base.command';
 import { CreateKnowledgeBaseResult } from '@contexts/knowledge-bases/application/commands/create-knowledge-base/create-knowledge-base.handler';
 import { DeleteKnowledgeBaseCommand } from '@contexts/knowledge-bases/application/commands/delete-knowledge-base/delete-knowledge-base.command';
+import { ReembedKnowledgeBaseCommand } from '@contexts/knowledge-bases/application/commands/reembed-knowledge-base/reembed-knowledge-base.command';
 import { RotateKnowledgeBaseApiKeyCommand } from '@contexts/knowledge-bases/application/commands/rotate-knowledge-base-api-key/rotate-knowledge-base-api-key.command';
 import { RotateKnowledgeBaseApiKeyResult } from '@contexts/knowledge-bases/application/commands/rotate-knowledge-base-api-key/rotate-knowledge-base-api-key.handler';
 import { UpdateKnowledgeBaseCommand } from '@contexts/knowledge-bases/application/commands/update-knowledge-base/update-knowledge-base.command';
@@ -121,6 +122,25 @@ export class KnowledgeBaseMutationsResolver {
     return this.mutationResponseGraphQLMapper.toResponseDto({
       success: true,
       message: 'Knowledge base embedding model change requested',
+      id: knowledgeBaseId,
+    });
+  }
+
+  @Mutation(() => MutationResponseDto)
+  async reembedKnowledgeBase(
+    @CurrentKnowledgeBaseId() knowledgeBaseId: string,
+  ): Promise<MutationResponseDto> {
+    this.logger.log(
+      `Requesting reembedding for knowledge base: ${knowledgeBaseId}`,
+    );
+
+    await this.commandBus.execute(
+      new ReembedKnowledgeBaseCommand({ id: knowledgeBaseId }),
+    );
+
+    return this.mutationResponseGraphQLMapper.toResponseDto({
+      success: true,
+      message: 'Knowledge base reembedding requested',
       id: knowledgeBaseId,
     });
   }
