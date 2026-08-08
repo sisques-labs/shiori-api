@@ -41,7 +41,7 @@ produces. Nothing ever probes a provider to discover a dimension.
 | `text-embedding-ada-002` | openai | 1536 |
 | `nomic-embed-text` | ollama | 768 |
 | `mxbai-embed-large` | ollama | 1024 |
-| `qwen3-embedding` | ollama | 1024 |
+| `qwen3-embedding:0.6b` | ollama | 1024 |
 
 `EmbeddingModelRegistryService` (`domain/services/`, plain domain service,
 no I/O) exposes `findById`/`getOrThrow`/`listAll` over this array.

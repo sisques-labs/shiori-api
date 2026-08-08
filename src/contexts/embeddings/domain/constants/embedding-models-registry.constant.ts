@@ -32,5 +32,7 @@ export const EMBEDDING_MODELS_REGISTRY: readonly EmbeddingModelDefinition[] = [
   { id: 'text-embedding-ada-002', provider: 'openai', dimensions: 1536 },
   { id: 'nomic-embed-text', provider: 'ollama', dimensions: 768 },
   { id: 'mxbai-embed-large', provider: 'ollama', dimensions: 1024 },
-  { id: 'qwen3-embedding', provider: 'ollama', dimensions: 1024 },
+  // Only the 0.6B tag is listed: it's the only Qwen3 Embedding size that
+  // fits pgvector's 2000-dimension HNSW limit (4B is 2560, 8B is 4096).
+  { id: 'qwen3-embedding:0.6b', provider: 'ollama', dimensions: 1024 },
 ];
