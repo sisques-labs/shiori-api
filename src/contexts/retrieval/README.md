@@ -29,7 +29,7 @@ RetrievalSearchQueryHandler.execute(query)
 
 If the target Knowledge Base's `embeddingStatus` is `REEMBEDDING` or
 `FAILED`, `embeddings`' own `EmbeddingSearchQueryHandler` rejects with
-`KnowledgeBaseNotReadyForSearchException` before this context ever sees a
+`EmbeddingSearchNotReadyException` before this context ever sees a
 result — surfaced here as HTTP 409 by the global exception filter (mapped
 in `embeddings`' own `embeddings-exception.filter.ts`, since the exception
 is thrown from that context and propagates unchanged; `retrieval` needs no

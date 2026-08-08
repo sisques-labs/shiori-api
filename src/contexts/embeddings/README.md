@@ -273,7 +273,7 @@ by `KnowledgeBaseEmbeddingConfigAdapter`
 generation logic. This context exposes exactly one internal-only,
 no-transport capability for that: `EmbeddingSearchQuery` — takes free text
 and a `topK`, resolves the Knowledge Base's embedding config, rejects with
-`KnowledgeBaseNotReadyForSearchException` (surfaced by the global exception
+`EmbeddingSearchNotReadyException` (surfaced by the global exception
 filter as HTTP 409) if `embeddingStatus !== READY`, otherwise embeds the
 text via `EmbeddingPort` using the resolved model, and runs the
 tenant-scoped similarity search against the resolved dimension's table.

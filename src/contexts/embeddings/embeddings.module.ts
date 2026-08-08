@@ -18,6 +18,8 @@ import { KNOWLEDGE_BASE_REEMBEDDING_STATUS_PORT } from './application/ports/know
 import { EmbeddingAvailableModelsQueryHandler } from './application/queries/embedding-available-models/embedding-available-models.handler';
 import { EmbeddingModelExistsQueryHandler } from './application/queries/embedding-model-exists/embedding-model-exists.handler';
 import { EmbeddingSearchQueryHandler } from './application/queries/embedding-search/embedding-search.handler';
+import { AssertEmbeddingSearchReadyService } from './application/services/read/assert-embedding-search-ready/assert-embedding-search-ready.service';
+import { EmbedDocumentChunksService } from './application/services/write/embed-document-chunks/embed-document-chunks.service';
 import { EmbeddingBuilder } from './domain/builders/embedding.builder';
 import { EMBEDDING_READ_REPOSITORY } from './domain/repositories/read/embedding-read.repository';
 import { EMBEDDING_WRITE_REPOSITORY } from './domain/repositories/write/embedding-write.repository';
@@ -55,6 +57,11 @@ const QUERY_HANDLERS = [
   EmbeddingSearchQueryHandler,
   EmbeddingAvailableModelsQueryHandler,
   EmbeddingModelExistsQueryHandler,
+];
+
+const APPLICATION_SERVICES = [
+  EmbedDocumentChunksService,
+  AssertEmbeddingSearchReadyService,
 ];
 
 const DOMAIN_SERVICES = [EmbeddingModelRegistryService];
@@ -136,6 +143,7 @@ const TRANSPORT_PROVIDERS = [...REST_PROVIDERS, ...GRAPHQL_PROVIDERS];
   providers: [
     ...COMMAND_HANDLERS,
     ...QUERY_HANDLERS,
+    ...APPLICATION_SERVICES,
     ...DOMAIN_SERVICES,
     ...DOMAIN_BUILDERS,
     ...INFRASTRUCTURE_MAPPERS,

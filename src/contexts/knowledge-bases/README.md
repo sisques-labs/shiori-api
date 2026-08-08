@@ -48,7 +48,7 @@ Base, run entirely by `embeddings`.
 ```
 
 - While `REEMBEDDING`: `retrieval`/`embeddings` search is rejected for this
-  Knowledge Base (HTTP 409, `KnowledgeBaseNotReadyForSearchException`,
+  Knowledge Base (HTTP 409, `EmbeddingSearchNotReadyException`,
   thrown and mapped inside `embeddings`); a second
   `ChangeKnowledgeBaseEmbeddingModel` call with a *different* model is
   rejected (`KnowledgeBaseReembeddingInProgressException`, 409) — no
