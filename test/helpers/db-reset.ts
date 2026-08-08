@@ -16,7 +16,6 @@ export const TRUNCATE_TABLES: readonly string[] = [
   'embedding_vectors_768',
   'embedding_vectors_1024',
   'embedding_vectors_1536',
-  'embedding_vectors_3072',
 ];
 
 /**
