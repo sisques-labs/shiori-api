@@ -198,19 +198,19 @@ describe('EmbeddingTypeOrmWriteRepository (integration)', () => {
           knowledgeBaseId,
           documentId,
           chunkIdLarge,
-          3072,
+          1024,
           1,
           'large',
-          'text-embedding-3-large',
+          'mxbai-embed-large',
         );
 
         await embeddingWriteRepo.saveMany([small], 768);
-        await embeddingWriteRepo.saveMany([large], 3072);
+        await embeddingWriteRepo.saveMany([large], 1024);
 
         expect(await countVectorRows(768, small.id.value)).toBe(1);
-        expect(await countVectorRows(3072, large.id.value)).toBe(1);
+        expect(await countVectorRows(1024, large.id.value)).toBe(1);
         // Neither row leaked into the other dimension's table.
-        expect(await countVectorRows(3072, small.id.value)).toBe(0);
+        expect(await countVectorRows(1024, small.id.value)).toBe(0);
         expect(await countVectorRows(768, large.id.value)).toBe(0);
       });
     });

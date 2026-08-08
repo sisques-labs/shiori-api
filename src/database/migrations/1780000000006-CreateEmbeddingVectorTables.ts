@@ -5,15 +5,17 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * `EMBEDDING_MODELS_REGISTRY` at the time this migration was written —
  * `embedding_vectors_768` (nomic-embed-text), `embedding_vectors_1024`
  * (mxbai-embed-large), `embedding_vectors_1536` (text-embedding-3-small,
- * text-embedding-ada-002), `embedding_vectors_3072`
- * (text-embedding-3-large). Adding a model with a dimension not covered
+ * text-embedding-ada-002). Adding a model with a dimension not covered
  * here requires a new migration following this same shape — see
- * `src/contexts/embeddings/README.md`.
+ * `src/contexts/embeddings/README.md`. Note the HNSW index below caps
+ * this at 2000 dimensions max (a pgvector limit, not a limit of this
+ * migration's shape) — that's why the registry has no >2000-dimension
+ * model (e.g. text-embedding-3-large's default 3072).
  */
 export class CreateEmbeddingVectorTables1780000000006 implements MigrationInterface {
   name = 'CreateEmbeddingVectorTables1780000000006';
 
-  private readonly dimensions = [768, 1024, 1536, 3072];
+  private readonly dimensions = [768, 1024, 1536];
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     for (const dimension of this.dimensions) {

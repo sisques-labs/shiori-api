@@ -38,7 +38,6 @@ produces. Nothing ever probes a provider to discover a dimension.
 | Model id | Provider | Dimensions |
 |----------|----------|------------|
 | `text-embedding-3-small` | openai | 1536 |
-| `text-embedding-3-large` | openai | 3072 |
 | `text-embedding-ada-002` | openai | 1536 |
 | `nomic-embed-text` | ollama | 768 |
 | `mxbai-embed-large` | ollama | 1024 |
@@ -59,6 +58,14 @@ model id.
   `EMBEDDING_DIMENSIONS` list (automatic — it's derived from the registry
   itself, so this step is really "the migration exists before the app
   boots against it").
+- **Hard limit: 2000 dimensions.** pgvector's HNSW index does not support
+  columns wider than 2000 dimensions — a model producing more than that
+  (e.g. `text-embedding-3-large`'s default 3072) cannot be added without
+  either a different indexing strategy for its table (not solved here) or
+  requesting a truncated output from the provider (OpenAI's API accepts a
+  `dimensions` parameter to shrink `text-embedding-3-large` to e.g. 1024 —
+  that would need its own registry entry with a distinct id, since the
+  registry has no notion of "same model, different output size").
 
 ### Public "list available models" query
 
@@ -82,8 +89,8 @@ shape per dimension, only the vector itself moves out:
   non-vector indexes — untouched. This is pure metadata now.
 - `embedding_vectors_{dimension}` (one physical table per distinct
   dimension in the registry: `embedding_vectors_768`,
-  `embedding_vectors_1024`, `embedding_vectors_1536`,
-  `embedding_vectors_3072`) holds only `embedding_id` (PK, FK to
+  `embedding_vectors_1024`, `embedding_vectors_1536`) holds only
+  `embedding_id` (PK, FK to
   `embeddings.id`, `ON DELETE CASCADE`) and `embedding vector(N)`, plus its
   own HNSW cosine index. Two models that share a dimension (e.g.
   `text-embedding-3-small`/`text-embedding-ada-002`, both 1536) share a
@@ -336,7 +343,7 @@ Tables:
   `1780000000005-DropEmbeddingColumnFromEmbeddings`) — metadata only now.
   Indexed on `knowledge_base_id`, `document_id`.
 - `embedding_vectors_768`, `embedding_vectors_1024`,
-  `embedding_vectors_1536`, `embedding_vectors_3072` (migration
+  `embedding_vectors_1536` (migration
   `1780000000006-CreateEmbeddingVectorTables`) — each `embedding_id` (PK,
   FK to `embeddings.id`, `ON DELETE CASCADE`) + `embedding vector(N)`, each
   with its own HNSW cosine index.
