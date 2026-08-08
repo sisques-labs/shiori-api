@@ -1,0 +1,16 @@
+change: flexible-embedding-dimensions
+status: proposed
+created: 2026-08-07
+artifact_store: hybrid
+context: [knowledge-bases, embeddings, retrieval, documents]
+phases:
+  explore: done
+  proposal: done
+  spec: done
+  design: done
+  tasks: done
+  apply: pending
+  verify: pending
+  archive: pending
+next_recommended:
+  - sdd-apply

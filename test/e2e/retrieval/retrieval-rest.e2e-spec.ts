@@ -8,16 +8,17 @@ import {
 } from '../../helpers/fixtures';
 import { EMBEDDING_PORT } from '../../../src/contexts/embeddings/application/ports/embedding.port';
 import { EmbeddingBuilder } from '../../../src/contexts/embeddings/domain/builders/embedding.builder';
-import { EMBEDDING_VECTOR_DIMENSIONS } from '../../../src/contexts/embeddings/domain/constants/embedding-vector-dimensions.constant';
 import {
   EMBEDDING_WRITE_REPOSITORY,
   IEmbeddingWriteRepository,
 } from '../../../src/contexts/embeddings/domain/repositories/write/embedding-write.repository';
 import { KnowledgeBaseContext } from '../../../src/core/tenancy/knowledge-base-context.service';
 
+const DIMENSIONS = 1536;
+
 /** A 1536-dim vector that is all zeros except the given index/value pairs. */
 function buildVector(overrides: Record<number, number> = {}): number[] {
-  const vector = new Array(EMBEDDING_VECTOR_DIMENSIONS).fill(0);
+  const vector = new Array(DIMENSIONS).fill(0);
   for (const [index, value] of Object.entries(overrides)) {
     vector[Number(index)] = value;
   }
@@ -59,8 +60,14 @@ describe('Retrieval REST (e2e)', () => {
     await truncateAll(ctx.dataSource);
   });
 
-  async function createKnowledgeBase(name = 'Search KB') {
-    const res = await ctx.http().post('/api/v1/knowledge-bases').send({ name });
+  async function createKnowledgeBase(
+    name = 'Search KB',
+    embeddingModel = 'text-embedding-3-small',
+  ) {
+    const res = await ctx
+      .http()
+      .post('/api/v1/knowledge-bases')
+      .send({ name, embeddingModel });
     return res.body as { id: string; apiKey: string; name: string };
   }
 
@@ -71,6 +78,7 @@ describe('Retrieval REST (e2e)', () => {
     vector: number[],
     position: number,
     text: string,
+    model = 'text-embedding-3-small',
   ) {
     return new EmbeddingBuilder()
       .withId(randomUUID())
@@ -80,7 +88,8 @@ describe('Retrieval REST (e2e)', () => {
       .withChunkText(text)
       .withChunkPosition(position)
       .withEmbedding(vector)
-      .withModel('test-model')
+      .withDimensions(DIMENSIONS)
+      .withModel(model)
       .withCreatedAt(new Date())
       .withUpdatedAt(new Date())
       .build();
@@ -98,32 +107,35 @@ describe('Retrieval REST (e2e)', () => {
     await insertChunkFixture(ctx.dataSource, chunkIdMid, documentId, kb.id, 1);
 
     await knowledgeBaseContext.run(kb.id, () =>
-      embeddingWriteRepo.saveMany([
-        buildEmbedding(
-          kb.id,
-          documentId,
-          chunkIdFar,
-          buildVector({ 0: -1 }),
-          2,
-          'far chunk',
-        ),
-        buildEmbedding(
-          kb.id,
-          documentId,
-          chunkIdNear,
-          buildVector({ 0: 1 }),
-          0,
-          'near chunk',
-        ),
-        buildEmbedding(
-          kb.id,
-          documentId,
-          chunkIdMid,
-          buildVector({ 0: 1, 1: 1 }),
-          1,
-          'mid chunk',
-        ),
-      ]),
+      embeddingWriteRepo.saveMany(
+        [
+          buildEmbedding(
+            kb.id,
+            documentId,
+            chunkIdFar,
+            buildVector({ 0: -1 }),
+            2,
+            'far chunk',
+          ),
+          buildEmbedding(
+            kb.id,
+            documentId,
+            chunkIdNear,
+            buildVector({ 0: 1 }),
+            0,
+            'near chunk',
+          ),
+          buildEmbedding(
+            kb.id,
+            documentId,
+            chunkIdMid,
+            buildVector({ 0: 1, 1: 1 }),
+            1,
+            'mid chunk',
+          ),
+        ],
+        DIMENSIONS,
+      ),
     );
 
     const res = await ctx
@@ -167,28 +179,34 @@ describe('Retrieval REST (e2e)', () => {
     );
 
     await knowledgeBaseContext.run(kbOne.id, () =>
-      embeddingWriteRepo.saveMany([
-        buildEmbedding(
-          kbOne.id,
-          documentIdOne,
-          chunkIdOne,
-          buildVector({ 0: 1 }),
-          0,
-          'kb one chunk',
-        ),
-      ]),
+      embeddingWriteRepo.saveMany(
+        [
+          buildEmbedding(
+            kbOne.id,
+            documentIdOne,
+            chunkIdOne,
+            buildVector({ 0: 1 }),
+            0,
+            'kb one chunk',
+          ),
+        ],
+        DIMENSIONS,
+      ),
     );
     await knowledgeBaseContext.run(kbTwo.id, () =>
-      embeddingWriteRepo.saveMany([
-        buildEmbedding(
-          kbTwo.id,
-          documentIdTwo,
-          chunkIdTwo,
-          buildVector({ 0: 1 }),
-          0,
-          'kb two chunk',
-        ),
-      ]),
+      embeddingWriteRepo.saveMany(
+        [
+          buildEmbedding(
+            kbTwo.id,
+            documentIdTwo,
+            chunkIdTwo,
+            buildVector({ 0: 1 }),
+            0,
+            'kb two chunk',
+          ),
+        ],
+        DIMENSIONS,
+      ),
     );
 
     const res = await ctx
@@ -209,5 +227,88 @@ describe('Retrieval REST (e2e)', () => {
       .send({ query: 'anything' });
 
     expect(res.status).toBe(401);
+  });
+
+  it('POST /api/v1/retrieval/search ignores rows left behind by a different model sharing the same dimension', async () => {
+    const kb = await createKnowledgeBase('Model Isolation KB');
+    const documentId = randomUUID();
+    const chunkIdCurrentModel = randomUUID();
+    const chunkIdStaleModel = randomUUID();
+    await insertDocumentFixture(ctx.dataSource, documentId, kb.id);
+    await insertChunkFixture(
+      ctx.dataSource,
+      chunkIdCurrentModel,
+      documentId,
+      kb.id,
+      0,
+    );
+    await insertChunkFixture(
+      ctx.dataSource,
+      chunkIdStaleModel,
+      documentId,
+      kb.id,
+      1,
+    );
+
+    // text-embedding-ada-002 shares text-embedding-3-small's 1536
+    // dimensions, so both land in the same embedding_vectors_1536 table —
+    // simulates rows a prior embeddingModel left behind. Only the `model`
+    // filter (not dimension or knowledge_base_id alone) can tell them apart.
+    await knowledgeBaseContext.run(kb.id, () =>
+      embeddingWriteRepo.saveMany(
+        [
+          buildEmbedding(
+            kb.id,
+            documentId,
+            chunkIdCurrentModel,
+            buildVector({ 0: 1 }),
+            0,
+            'current model chunk',
+            'text-embedding-3-small',
+          ),
+          buildEmbedding(
+            kb.id,
+            documentId,
+            chunkIdStaleModel,
+            buildVector({ 0: 1 }),
+            1,
+            'stale model chunk',
+            'text-embedding-ada-002',
+          ),
+        ],
+        DIMENSIONS,
+      ),
+    );
+
+    const res = await ctx
+      .http()
+      .post('/api/v1/retrieval/search')
+      .set('X-API-Key', kb.apiKey)
+      .send({ query: 'anything' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].chunkText).toBe('current model chunk');
+  });
+
+  it('POST /api/v1/retrieval/search returns 409 while the knowledge base is REEMBEDDING', async () => {
+    const kb = await createKnowledgeBase('Reembedding KB');
+
+    // Set the status directly rather than triggering it via the
+    // change-embedding-model endpoint: that queues a real BullMQ job which
+    // can finish (0 documents to re-embed) before this test's follow-up
+    // request runs, racing the very state under test.
+    await ctx.dataSource.query(
+      `UPDATE knowledge_bases SET embedding_status = 'REEMBEDDING' WHERE id = $1`,
+      [kb.id],
+    );
+
+    const res = await ctx
+      .http()
+      .post('/api/v1/retrieval/search')
+      .set('X-API-Key', kb.apiKey)
+      .send({ query: 'anything' });
+
+    expect(res.status).toBe(409);
   });
 });

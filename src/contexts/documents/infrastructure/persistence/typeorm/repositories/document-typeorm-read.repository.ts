@@ -24,6 +24,7 @@ export class DocumentTypeOrmReadRepository
   implements IDocumentReadRepository
 {
   private readonly repository: Repository<DocumentTypeOrmEntity>;
+  private readonly rawRepository: Repository<DocumentTypeOrmEntity>;
 
   constructor(
     @InjectRepository(DocumentTypeOrmEntity)
@@ -32,6 +33,7 @@ export class DocumentTypeOrmReadRepository
     private readonly knowledgeBaseContext: KnowledgeBaseContext,
   ) {
     super();
+    this.rawRepository = rawRepository;
     this.repository = createTenantRepository(
       rawRepository,
       knowledgeBaseContext,
@@ -41,6 +43,18 @@ export class DocumentTypeOrmReadRepository
   async findById(id: string): Promise<DocumentViewModel | null> {
     const entity = await this.repository.findOne({ where: { id } });
     return entity ? this.mapper.toViewModel(entity) : null;
+  }
+
+  async findIdsByKnowledgeBaseId(knowledgeBaseId: string): Promise<string[]> {
+    // Explicit `knowledgeBaseId` given by the caller (the re-embed
+    // pipeline, enumerating a specific tenant's documents) — queried via
+    // the raw repository rather than the ambient tenant-repo proxy, same
+    // reasoning as the other "whole tenant" operations in this codebase.
+    const entities = await this.rawRepository.find({
+      where: { knowledgeBaseId },
+      select: { id: true },
+    });
+    return entities.map((entity) => entity.id);
   }
 
   async findByCriteria(

@@ -16,8 +16,14 @@ describe('Documents REST (e2e)', () => {
     await truncateAll(ctx.dataSource);
   });
 
-  async function createKnowledgeBase(name = 'Docs KB') {
-    const res = await ctx.http().post('/api/v1/knowledge-bases').send({ name });
+  async function createKnowledgeBase(
+    name = 'Docs KB',
+    embeddingModel = 'text-embedding-3-small',
+  ) {
+    const res = await ctx
+      .http()
+      .post('/api/v1/knowledge-bases')
+      .send({ name, embeddingModel });
     return res.body as { id: string; apiKey: string; name: string };
   }
 

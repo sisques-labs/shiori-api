@@ -14,4 +14,10 @@ export class CreateKnowledgeBaseGraphQLDto {
   @IsString()
   @MaxLength(2000)
   description?: string;
+
+  @Field(() => String)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  embeddingModel!: string;
 }

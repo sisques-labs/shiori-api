@@ -10,6 +10,10 @@ import {
   ChunkFindByDocumentIdQueryInput,
 } from '@contexts/documents/application/queries/chunk-find-by-document-id/chunk-find-by-document-id.query';
 import { ChunkFindByDocumentIdResult } from '@contexts/documents/application/queries/chunk-find-by-document-id/chunk-find-by-document-id.handler';
+import {
+  DocumentFindIdsByKnowledgeBaseIdQuery,
+  DocumentFindIdsByKnowledgeBaseIdQueryInput,
+} from '@contexts/documents/application/queries/document-find-ids-by-knowledge-base-id/document-find-ids-by-knowledge-base-id.query';
 
 /**
  * Implements `ChunkSourcePort` by dispatching `documents`' internal-only
@@ -39,5 +43,18 @@ export class DocumentChunkSourceAdapter implements IChunkSourcePort {
       text: result.text,
       position: result.position,
     }));
+  }
+
+  async findKnowledgeBaseDocumentIds(
+    knowledgeBaseId: string,
+  ): Promise<string[]> {
+    return this.queryBus.execute<
+      DocumentFindIdsByKnowledgeBaseIdQuery,
+      string[]
+    >(
+      new DocumentFindIdsByKnowledgeBaseIdQuery({
+        knowledgeBaseId,
+      } satisfies DocumentFindIdsByKnowledgeBaseIdQueryInput),
+    );
   }
 }

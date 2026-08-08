@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.1.0] - 2026-08-08
+
+### Bug Fixes
+- **docs:** Align .env.example with embeddings config vars (fd876d2)
+
+### Features
+- **api:** Add Swagger authentication and URI versioning (2f56310)
 ## [0.0.3] - 2026-08-07
 
 ### Bug Fixes

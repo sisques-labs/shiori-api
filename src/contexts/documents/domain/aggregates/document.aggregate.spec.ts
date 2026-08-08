@@ -4,6 +4,7 @@ import { DocumentStatusEnum } from '@contexts/documents/domain/enums/document-st
 import { DocumentInvalidStatusTransitionException } from '@contexts/documents/domain/exceptions/document-invalid-status-transition.exception';
 import { DocumentChunkCountValueObject } from '@contexts/documents/domain/value-objects/document-chunk-count/document-chunk-count.value-object';
 import { DocumentContentValueObject } from '@contexts/documents/domain/value-objects/document-content/document-content.value-object';
+import { DocumentFailureReasonValueObject } from '@contexts/documents/domain/value-objects/document-failure-reason/document-failure-reason.value-object';
 import { DocumentIdValueObject } from '@contexts/documents/domain/value-objects/document-id/document-id.value-object';
 import { DocumentStatusValueObject } from '@contexts/documents/domain/value-objects/document-status/document-status.value-object';
 import { DocumentTitleValueObject } from '@contexts/documents/domain/value-objects/document-title/document-title.value-object';
@@ -177,6 +178,60 @@ describe('DocumentAggregate', () => {
     expect(() =>
       doc.update({ title: new DocumentTitleValueObject('X') }),
     ).toThrow(DocumentInvalidStatusTransitionException);
+  });
+
+  describe('requestRechunk()', () => {
+    it('resets a CHUNKED document to PENDING, clears chunkCount/failureReason, and emits DocumentRechunkRequested', () => {
+      const now = new Date();
+      const doc = new DocumentAggregate({
+        id: DocumentIdValueObject.generate() as DocumentIdValueObject,
+        knowledgeBaseId: UuidValueObject.generate(),
+        title: new DocumentTitleValueObject('Doc'),
+        content: new DocumentContentValueObject('Some content'),
+        status: new DocumentStatusValueObject(DocumentStatusEnum.CHUNKED),
+        failureReason: null,
+        chunkCount: new DocumentChunkCountValueObject(13),
+        createdAt: new DateValueObject(now),
+        updatedAt: new DateValueObject(now),
+      });
+
+      doc.requestRechunk();
+
+      expect(doc.status.value).toBe(DocumentStatusEnum.PENDING);
+      expect(doc.chunkCount.value).toBe(0);
+      expect(doc.failureReason).toBeNull();
+      const events = doc.getUncommittedEvents();
+      expect(events[events.length - 1].constructor.name).toBe(
+        'DocumentRechunkRequestedEvent',
+      );
+    });
+
+    it('is retryable from FAILED and clears the failure reason', () => {
+      const now = new Date();
+      const doc = new DocumentAggregate({
+        id: DocumentIdValueObject.generate() as DocumentIdValueObject,
+        knowledgeBaseId: UuidValueObject.generate(),
+        title: new DocumentTitleValueObject('Doc'),
+        content: new DocumentContentValueObject('Some content'),
+        status: new DocumentStatusValueObject(DocumentStatusEnum.FAILED),
+        failureReason: new DocumentFailureReasonValueObject('boom'),
+        chunkCount: new DocumentChunkCountValueObject(0),
+        createdAt: new DateValueObject(now),
+        updatedAt: new DateValueObject(now),
+      });
+
+      doc.requestRechunk();
+
+      expect(doc.status.value).toBe(DocumentStatusEnum.PENDING);
+      expect(doc.failureReason).toBeNull();
+    });
+
+    it('throws while CHUNKING', () => {
+      const doc = buildAggregate(DocumentStatusEnum.CHUNKING);
+      expect(() => doc.requestRechunk()).toThrow(
+        DocumentInvalidStatusTransitionException,
+      );
+    });
   });
 
   it('delete() emits DocumentDeleted', () => {

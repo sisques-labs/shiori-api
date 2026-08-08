@@ -2,6 +2,8 @@ import { EventBus } from '@nestjs/cqrs';
 
 import { KnowledgeBaseAggregate } from '@contexts/knowledge-bases/domain/aggregates/knowledge-base.aggregate';
 import { KnowledgeBaseApiKeyHashValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-api-key-hash/knowledge-base-api-key-hash.value-object';
+import { KnowledgeBaseEmbeddingModelValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-embedding-model/knowledge-base-embedding-model.value-object';
+import { KnowledgeBaseEmbeddingStatusValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-embedding-status/knowledge-base-embedding-status.value-object';
 import { KnowledgeBaseIdValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-id/knowledge-base-id.value-object';
 import { KnowledgeBaseNameValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-name/knowledge-base-name.value-object';
 import { IKnowledgeBaseWriteRepository } from '@contexts/knowledge-bases/domain/repositories/write/knowledge-base-write.repository';
@@ -25,6 +27,10 @@ describe('DeleteKnowledgeBaseCommandHandler', () => {
       name: new KnowledgeBaseNameValueObject('Docs'),
       description: null,
       apiKeyHash: new KnowledgeBaseApiKeyHashValueObject('a'.repeat(64)),
+      embeddingModel: new KnowledgeBaseEmbeddingModelValueObject(
+        'text-embedding-3-small',
+      ),
+      embeddingStatus: new KnowledgeBaseEmbeddingStatusValueObject('READY'),
       createdAt: new DateValueObject(now),
       updatedAt: new DateValueObject(now),
     });

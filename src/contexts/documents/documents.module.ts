@@ -11,12 +11,14 @@ import { TenancyModule } from '@core/tenancy/tenancy.module';
 import { CreateDocumentCommandHandler } from './application/commands/create-document/create-document.handler';
 import { DeleteDocumentCommandHandler } from './application/commands/delete-document/delete-document.handler';
 import { DeleteDocumentsByKnowledgeBaseCommandHandler } from './application/commands/delete-documents-by-knowledge-base/delete-documents-by-knowledge-base.handler';
+import { RechunkDocumentCommandHandler } from './application/commands/rechunk-document/rechunk-document.handler';
 import { UpdateDocumentCommandHandler } from './application/commands/update-document/update-document.handler';
 import { CHUNKING_STRATEGY_PORT } from './application/ports/chunking-strategy.port';
 import { DOCUMENT_PROCESSING_QUEUE_PORT } from './application/ports/document-processing-queue.port';
 import { ChunkFindByDocumentIdQueryHandler } from './application/queries/chunk-find-by-document-id/chunk-find-by-document-id.handler';
 import { DocumentFindByCriteriaQueryHandler } from './application/queries/document-find-by-criteria/document-find-by-criteria.handler';
 import { DocumentFindByIdQueryHandler } from './application/queries/document-find-by-id/document-find-by-id.handler';
+import { DocumentFindIdsByKnowledgeBaseIdQueryHandler } from './application/queries/document-find-ids-by-knowledge-base-id/document-find-ids-by-knowledge-base-id.handler';
 import { AssertDocumentViewModelExistsService } from './application/services/read/assert-document-view-model-exists/assert-document-view-model-exists.service';
 import { AssertDocumentContentNotTooLargeService } from './application/services/write/assert-document-content-not-too-large/assert-document-content-not-too-large.service';
 import { AssertDocumentExistsService } from './application/services/write/assert-document-exists/assert-document-exists.service';
@@ -45,12 +47,14 @@ import { DocumentCreateMcpTool } from './transport/mcp/tools/document-create.too
 import { DocumentDeleteMcpTool } from './transport/mcp/tools/document-delete.tool';
 import { DocumentFindByCriteriaMcpTool } from './transport/mcp/tools/document-find-by-criteria.tool';
 import { DocumentFindByIdMcpTool } from './transport/mcp/tools/document-find-by-id.tool';
+import { DocumentRechunkMcpTool } from './transport/mcp/tools/document-rechunk.tool';
 import { DocumentsController } from './transport/rest/controllers/documents.controller';
 import { DocumentRestMapper } from './transport/rest/mappers/document/document.mapper';
 
 const COMMAND_HANDLERS = [
   CreateDocumentCommandHandler,
   UpdateDocumentCommandHandler,
+  RechunkDocumentCommandHandler,
   DeleteDocumentCommandHandler,
   DeleteDocumentsByKnowledgeBaseCommandHandler,
 ];
@@ -59,6 +63,7 @@ const QUERY_HANDLERS = [
   DocumentFindByIdQueryHandler,
   DocumentFindByCriteriaQueryHandler,
   ChunkFindByDocumentIdQueryHandler,
+  DocumentFindIdsByKnowledgeBaseIdQueryHandler,
 ];
 
 const APPLICATION_SERVICES = [
@@ -115,6 +120,7 @@ const MCP_TOOLS = [
   DocumentFindByIdMcpTool,
   DocumentFindByCriteriaMcpTool,
   DocumentDeleteMcpTool,
+  DocumentRechunkMcpTool,
 ];
 
 const TRANSPORT_PROVIDERS = [

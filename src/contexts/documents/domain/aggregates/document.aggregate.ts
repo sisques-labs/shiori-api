@@ -9,6 +9,7 @@ import { DocumentChunkingFailedEvent } from '@contexts/documents/domain/events/d
 import { DocumentChunkingStartedEvent } from '@contexts/documents/domain/events/document-chunking-started/document-chunking-started.event';
 import { DocumentCreatedEvent } from '@contexts/documents/domain/events/document-created/document-created.event';
 import { DocumentDeletedEvent } from '@contexts/documents/domain/events/document-deleted/document-deleted.event';
+import { DocumentRechunkRequestedEvent } from '@contexts/documents/domain/events/document-rechunk-requested/document-rechunk-requested.event';
 import { DocumentContentChangedEvent } from '@contexts/documents/domain/events/field-changed/document-content-changed/document-content-changed.event';
 import { DocumentTitleChangedEvent } from '@contexts/documents/domain/events/field-changed/document-title-changed/document-title-changed.event';
 import { DocumentUpdatedEvent } from '@contexts/documents/domain/events/document-updated/document-updated.event';
@@ -103,6 +104,37 @@ export class DocumentAggregate extends BaseAggregate {
       new DocumentContentChangedEvent(
         this.metadata(DocumentContentChangedEvent.name),
         this.fieldChangedData(oldValue, newContent.value),
+      ),
+    );
+  }
+
+  /**
+   * Forces the document back to `PENDING` so it gets re-chunked from its
+   * CURRENT content — unlike `update({ content })`, this requires no actual
+   * content change (there is none here) and never no-ops. Exists to recover
+   * documents whose `chunks` rows are missing/stale despite a `CHUNKED`
+   * status (e.g. from a bad import), the same "force" pattern
+   * `KnowledgeBaseAggregate.requestReembedding()` uses for stuck embeddings.
+   * The caller (application layer) deletes the stale chunk rows and
+   * re-enqueues chunking; this aggregate only reflects the resulting state.
+   */
+  public requestRechunk(): void {
+    if (this._status.value === DocumentStatusEnum.CHUNKING) {
+      throw new DocumentInvalidStatusTransitionException(
+        this._status.value,
+        'rechunked-while-chunking',
+      );
+    }
+
+    this._status = new DocumentStatusValueObject(DocumentStatusEnum.PENDING);
+    this._chunkCount = new DocumentChunkCountValueObject(0);
+    this._failureReason = null;
+    this.touch();
+
+    this.apply(
+      new DocumentRechunkRequestedEvent(
+        this.metadata(DocumentRechunkRequestedEvent.name),
+        this.toPrimitives(),
       ),
     );
   }

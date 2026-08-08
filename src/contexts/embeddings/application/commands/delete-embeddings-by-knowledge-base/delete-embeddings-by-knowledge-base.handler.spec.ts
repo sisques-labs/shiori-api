@@ -14,6 +14,7 @@ describe('DeleteEmbeddingsByKnowledgeBaseCommandHandler', () => {
       saveMany: jest.fn(),
       deleteByDocumentId: jest.fn(),
       deleteByKnowledgeBaseId: jest.fn().mockResolvedValue(undefined),
+      deleteByKnowledgeBaseIdAndModel: jest.fn(),
       findById: jest.fn(),
       findByCriteria: jest.fn(),
       save: jest.fn(),
