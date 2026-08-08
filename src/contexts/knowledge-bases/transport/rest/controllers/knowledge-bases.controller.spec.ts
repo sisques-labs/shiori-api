@@ -38,7 +38,10 @@ describe('KnowledgeBasesController', () => {
       updatedAt: new Date(),
     } as any);
 
-    const dto: CreateKnowledgeBaseDto = { name: 'Docs' };
+    const dto: CreateKnowledgeBaseDto = {
+      name: 'Docs',
+      embeddingModel: 'text-embedding-3-small',
+    };
     const result = await controller.createKnowledgeBase(dto);
 
     expect(assertViewModelExists.execute).toHaveBeenCalledWith('kb-1');
@@ -61,6 +64,27 @@ describe('KnowledgeBasesController', () => {
     expect(assertViewModelExists.execute).toHaveBeenCalledWith('kb-1');
     expect(result).not.toHaveProperty('apiKeyHash');
     expect(result).not.toHaveProperty('apiKey');
+  });
+
+  it('reembedOwnKnowledgeBase dispatches ReembedKnowledgeBaseCommand for the caller’s own id', async () => {
+    const id = 'e3c1a1b0-0000-4000-8000-000000000001';
+    assertViewModelExists.execute.mockResolvedValue({
+      id,
+      name: 'Docs',
+      description: null,
+      apiKeyHash: 'a'.repeat(64),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any);
+
+    await controller.reembedOwnKnowledgeBase(id);
+
+    expect(commandBus.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: expect.objectContaining({ value: id }),
+      }),
+    );
+    expect(assertViewModelExists.execute).toHaveBeenCalledWith(id);
   });
 
   it('rotateOwnApiKey returns only the new apiKey', async () => {

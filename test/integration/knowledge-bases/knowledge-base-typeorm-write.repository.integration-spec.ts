@@ -26,6 +26,7 @@ function buildKnowledgeBase(overrides?: {
       overrides?.description !== undefined ? overrides.description : null,
     )
     .withApiKeyHash(overrides?.apiKeyHash ?? 'a'.repeat(64))
+    .withEmbeddingModel('text-embedding-3-small')
     .withCreatedAt(NOW)
     .withUpdatedAt(NOW)
     .build();

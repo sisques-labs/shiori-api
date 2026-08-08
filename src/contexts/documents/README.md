@@ -54,6 +54,14 @@ lifecycle reachable from transport.
 - `UpdateDocument` — rejects while `CHUNKING` (422); otherwise replaces
   title/content, deletes existing chunks and re-enqueues chunking if content
   changed.
+- `RechunkDocument` — rejects while `CHUNKING` (422); otherwise forces the
+  document back to `PENDING` (clearing `chunkCount`/`failureReason`), deletes
+  any existing chunk rows, and re-enqueues chunking under the document's
+  **current** content — no content change required, unlike `UpdateDocument`.
+  Recovers a document whose `chunks` rows are missing or stale despite a
+  `CHUNKED` status (e.g. a bad import/seed), the same "force" need
+  `knowledge-bases`' `ReembedKnowledgeBase` addresses for stuck embeddings.
+  Retryable from `FAILED`.
 - `DeleteDocument` — deletes the document's chunks, then the document.
 - `DeleteDocumentsByKnowledgeBase` — **internal only**, no transport surface.
   Used exclusively by `KnowledgeBaseDeletedListener` for the cascade below.
@@ -117,7 +125,7 @@ deletes every document (and its chunks) for the deleted knowledge base.
 ## MCP tools
 
 Exposed — `document_create`, `document_find_by_id`,
-`document_find_by_criteria`, `document_delete`. Nothing here is
+`document_find_by_criteria`, `document_delete`, `document_rechunk`. Nothing here is
 credential/session material (contrast with `knowledge-bases`, which has none
 by design), so `AGENTS.md`'s MCP exposure decision is "yes." Tenancy for MCP
 calls is resolved by `McpContextBuilder` (`src/core/mcp/`), which reads

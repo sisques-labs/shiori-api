@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import {
   BaseDatabaseRepository,
   Criteria,
@@ -7,12 +7,18 @@ import {
   SortDirection,
 } from '@sisques-labs/nestjs-kit';
 import { applyCriteriaToQueryBuilder } from '@sisques-labs/nestjs-kit/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 
 import { EmbeddingAggregate } from '@contexts/embeddings/domain/aggregates/embedding.aggregate';
+import { NoEmbeddingTableForDimensionException } from '@contexts/embeddings/domain/exceptions/no-embedding-table-for-dimension.exception';
 import { IEmbeddingWriteRepository } from '@contexts/embeddings/domain/repositories/write/embedding-write.repository';
+import { EmbeddingModelRegistryService } from '@contexts/embeddings/domain/services/embedding-model-registry.service';
 import { KnowledgeBaseContext } from '@core/tenancy/knowledge-base-context.service';
 import { createTenantRepository } from '@core/tenancy/create-tenant-repository.factory';
+import {
+  EMBEDDING_VECTOR_ENTITIES_BY_DIMENSION,
+  EmbeddingVectorRow,
+} from '../entities/embedding-vector-entity.factory';
 import { EmbeddingTypeOrmEntity } from '../entities/embedding.entity';
 import { EmbeddingTypeOrmMapper } from '../mappers/embedding-typeorm.mapper';
 
@@ -27,8 +33,11 @@ export class EmbeddingTypeOrmWriteRepository
 
   constructor(
     private readonly mapper: EmbeddingTypeOrmMapper,
+    private readonly modelRegistry: EmbeddingModelRegistryService,
     @InjectRepository(EmbeddingTypeOrmEntity)
     private readonly rawRepository: Repository<EmbeddingTypeOrmEntity>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private readonly knowledgeBaseContext: KnowledgeBaseContext,
   ) {
     super();
@@ -38,22 +47,44 @@ export class EmbeddingTypeOrmWriteRepository
     );
   }
 
-  async saveMany(embeddings: EmbeddingAggregate[]): Promise<void> {
+  async saveMany(
+    embeddings: EmbeddingAggregate[],
+    dimensions: number,
+  ): Promise<void> {
     if (embeddings.length === 0) return;
 
-    const knowledgeBaseId = this.knowledgeBaseContext.require();
-    const entities = embeddings.map((embedding) => {
-      const entity = this.mapper.toPersistence(embedding);
-      entity.knowledgeBaseId = knowledgeBaseId;
-      return entity;
-    });
+    const vectorEntityClass =
+      EMBEDDING_VECTOR_ENTITIES_BY_DIMENSION.get(dimensions);
+    if (!vectorEntityClass) {
+      throw new NoEmbeddingTableForDimensionException(dimensions);
+    }
 
-    // Bulk insert bypasses the tenant-repo proxy, whose `save` interceptor
-    // only handles a single entity — stamped explicitly above instead.
-    await this.rawRepository.save(entities);
+    const knowledgeBaseId = this.knowledgeBaseContext.require();
+
+    // Both tables are written in one transaction, correlated by each
+    // aggregate's already client-generated id — no extra round trip needed
+    // to link a metadata row to its vector row.
+    await this.dataSource.transaction(async (manager) => {
+      const metadataEntities = embeddings.map((embedding) => {
+        const entity = this.mapper.toPersistence(embedding);
+        entity.knowledgeBaseId = knowledgeBaseId;
+        return entity;
+      });
+      await manager
+        .getRepository(EmbeddingTypeOrmEntity)
+        .save(metadataEntities);
+
+      const vectorRows = embeddings.map((embedding) =>
+        this.mapper.toVectorPersistence(embedding),
+      );
+      await manager.getRepository(vectorEntityClass).save(vectorRows);
+    });
   }
 
   async deleteByDocumentId(documentId: string): Promise<void> {
+    // Deletes from `embeddings` (metadata) only — `ON DELETE CASCADE`
+    // removes the matching row from whichever `embedding_vectors_{dimension}`
+    // table actually holds it. No dimension ever needs resolving here.
     await this.repository.delete({ documentId });
   }
 
@@ -65,9 +96,31 @@ export class EmbeddingTypeOrmWriteRepository
     await this.rawRepository.delete({ knowledgeBaseId });
   }
 
+  async deleteByKnowledgeBaseIdAndModel(
+    knowledgeBaseId: string,
+    model: string,
+  ): Promise<void> {
+    // Used only by the re-embed pipeline — filters by `model`, not
+    // dimension, so it can target exactly one model's rows for a tenant
+    // even when the previous/new model share a dimension (and vector
+    // table). Same "no ambient tenancy frame required" reasoning as
+    // deleteByKnowledgeBaseId above.
+    await this.rawRepository.delete({ knowledgeBaseId, model });
+  }
+
   async findById(id: string): Promise<EmbeddingAggregate | null> {
     const entity = await this.repository.findOne({ where: { id } });
-    return entity ? this.mapper.toDomain(entity) : null;
+    if (!entity) return null;
+
+    const { dimensions } = this.modelRegistry.getOrThrow(entity.model);
+    const vectorEntityClass =
+      EMBEDDING_VECTOR_ENTITIES_BY_DIMENSION.get(dimensions);
+    if (!vectorEntityClass) {
+      throw new NoEmbeddingTableForDimensionException(dimensions);
+    }
+    const vectorRow = await this.fetchVectorRow(vectorEntityClass, id);
+
+    return this.mapper.toDomain(entity, vectorRow?.embedding ?? [], dimensions);
   }
 
   async findByCriteria(
@@ -91,17 +144,47 @@ export class EmbeddingTypeOrmWriteRepository
     });
 
     const [entities, total] = await queryBuilder.getManyAndCount();
-    const items = entities.map((entity) => this.mapper.toDomain(entity));
+    const items = await Promise.all(
+      entities.map(async (entity) => {
+        const { dimensions } = this.modelRegistry.getOrThrow(entity.model);
+        const vectorEntityClass =
+          EMBEDDING_VECTOR_ENTITIES_BY_DIMENSION.get(dimensions);
+        if (!vectorEntityClass) {
+          throw new NoEmbeddingTableForDimensionException(dimensions);
+        }
+        const vectorRow = await this.fetchVectorRow(
+          vectorEntityClass,
+          entity.id,
+        );
+        return this.mapper.toDomain(
+          entity,
+          vectorRow?.embedding ?? [],
+          dimensions,
+        );
+      }),
+    );
     return new PaginatedResult(items, total, page, limit);
   }
 
   async save(aggregate: EmbeddingAggregate): Promise<EmbeddingAggregate> {
-    const entity = this.mapper.toPersistence(aggregate);
-    const saved = await this.repository.save(entity);
-    return this.mapper.toDomain(saved);
+    const dimensions = aggregate.embedding.dimensions;
+    await this.saveMany([aggregate], dimensions);
+    return aggregate;
   }
 
   async delete(id: string): Promise<void> {
     await this.repository.delete(id);
+  }
+
+  private async fetchVectorRow(
+    vectorEntityClass: NonNullable<
+      ReturnType<typeof EMBEDDING_VECTOR_ENTITIES_BY_DIMENSION.get>
+    >,
+    embeddingId: string,
+  ): Promise<EmbeddingVectorRow | null> {
+    const row = await this.dataSource
+      .getRepository(vectorEntityClass)
+      .findOne({ where: { embeddingId } });
+    return row as EmbeddingVectorRow | null;
   }
 }

@@ -25,6 +25,7 @@ export class EmbeddingBuilder extends BaseBuilder<
   private _chunkText!: string;
   private _chunkPosition!: number;
   private _embedding!: number[];
+  private _dimensions!: number;
   private _model!: string;
 
   withKnowledgeBaseId(knowledgeBaseId: string): this {
@@ -57,6 +58,11 @@ export class EmbeddingBuilder extends BaseBuilder<
     return this;
   }
 
+  withDimensions(dimensions: number): this {
+    this._dimensions = dimensions;
+    return this;
+  }
+
   withModel(model: string): this {
     this._model = model;
     return this;
@@ -77,6 +83,14 @@ export class EmbeddingBuilder extends BaseBuilder<
 
   public override build(): EmbeddingAggregate {
     this.validate();
+    // `dimensions` is only required to build the full aggregate (it's
+    // needed to construct `EmbeddingVectorValueObject`) — not for
+    // `buildViewModel()`, whose `EmbeddingViewModel` just stores the raw
+    // `embedding: number[]` with no dimension of its own. Checked here
+    // rather than in shared `validate()` so callers that only ever build a
+    // view model (e.g. the read-side mapper) don't have to call
+    // `withDimensions()` for a value they never use.
+    if (!this._dimensions) throw new FieldIsRequiredException('dimensions');
     return new EmbeddingAggregate({
       id: new EmbeddingIdValueObject(this._id),
       knowledgeBaseId: new UuidValueObject(this._knowledgeBaseId),
@@ -84,7 +98,10 @@ export class EmbeddingBuilder extends BaseBuilder<
       chunkId: new UuidValueObject(this._chunkId),
       chunkText: new EmbeddingChunkTextValueObject(this._chunkText),
       chunkPosition: new EmbeddingChunkPositionValueObject(this._chunkPosition),
-      embedding: new EmbeddingVectorValueObject(this._embedding),
+      embedding: new EmbeddingVectorValueObject(
+        this._embedding,
+        this._dimensions,
+      ),
       model: new EmbeddingModelValueObject(this._model),
       createdAt: new DateValueObject(this._createdAt),
       updatedAt: new DateValueObject(this._updatedAt),

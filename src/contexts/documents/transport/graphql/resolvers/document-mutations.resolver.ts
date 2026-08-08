@@ -9,6 +9,7 @@ import {
 import { CreateDocumentCommand } from '@contexts/documents/application/commands/create-document/create-document.command';
 import { CreateDocumentResult } from '@contexts/documents/application/commands/create-document/create-document.handler';
 import { DeleteDocumentCommand } from '@contexts/documents/application/commands/delete-document/delete-document.command';
+import { RechunkDocumentCommand } from '@contexts/documents/application/commands/rechunk-document/rechunk-document.command';
 import { UpdateDocumentCommand } from '@contexts/documents/application/commands/update-document/update-document.command';
 import { CurrentKnowledgeBaseId } from '@core/tenancy/current-knowledge-base-id.decorator';
 import { KnowledgeBaseApiKeyGuard } from '@core/tenancy/knowledge-base-api-key.guard';
@@ -69,6 +70,21 @@ export class DocumentMutationsResolver {
     return this.mutationResponseGraphQLMapper.toResponseDto({
       success: true,
       message: 'Document updated successfully',
+      id,
+    });
+  }
+
+  @Mutation(() => MutationResponseDto)
+  async rechunkDocument(
+    @Args('id', { type: () => ID }) id: string,
+  ): Promise<MutationResponseDto> {
+    this.logger.log(`Requesting rechunk for document: ${id}`);
+
+    await this.commandBus.execute(new RechunkDocumentCommand({ id }));
+
+    return this.mutationResponseGraphQLMapper.toResponseDto({
+      success: true,
+      message: 'Document rechunk requested',
       id,
     });
   }

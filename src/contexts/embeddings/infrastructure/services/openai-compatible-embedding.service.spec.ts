@@ -25,7 +25,6 @@ const axiosResponse = (
 const CONFIG: EmbeddingsConfig = {
   embeddingBaseUrl: 'https://api.openai.com/v1',
   embeddingApiKey: 'sk-test-key',
-  embeddingModel: 'text-embedding-3-small',
 };
 
 function buildService() {
@@ -45,7 +44,7 @@ function buildService() {
 }
 
 describe('OpenAiCompatibleEmbeddingService', () => {
-  it('embedBatch() posts to {baseUrl}/embeddings with the input texts, model, and bearer auth header', async () => {
+  it('embedBatch() posts to {baseUrl}/embeddings with the input texts, the given model, and bearer auth header', async () => {
     const { service, httpService } = buildService();
     httpService.post.mockReturnValue(
       of(
@@ -58,7 +57,10 @@ describe('OpenAiCompatibleEmbeddingService', () => {
       ),
     );
 
-    const result = await service.embedBatch(['first', 'second']);
+    const result = await service.embedBatch(
+      ['first', 'second'],
+      'text-embedding-3-small',
+    );
 
     expect(httpService.post).toHaveBeenCalledWith(
       'https://api.openai.com/v1/embeddings',
@@ -69,6 +71,21 @@ describe('OpenAiCompatibleEmbeddingService', () => {
       [0.1, 0.2],
       [0.3, 0.4],
     ]);
+  });
+
+  it('embedBatch() uses whatever model is passed in, not a config default', async () => {
+    const { service, httpService } = buildService();
+    httpService.post.mockReturnValue(
+      of(axiosResponse({ data: [{ embedding: [0.1], index: 0 }] })),
+    );
+
+    await service.embedBatch(['first'], 'nomic-embed-text');
+
+    expect(httpService.post).toHaveBeenCalledWith(
+      'https://api.openai.com/v1/embeddings',
+      { input: ['first'], model: 'nomic-embed-text' },
+      { headers: { Authorization: 'Bearer sk-test-key' } },
+    );
   });
 
   it('embedBatch() sorts the response by index, even when the API returns them out of order', async () => {
@@ -85,7 +102,10 @@ describe('OpenAiCompatibleEmbeddingService', () => {
       ),
     );
 
-    const result = await service.embedBatch(['a', 'b', 'c']);
+    const result = await service.embedBatch(
+      ['a', 'b', 'c'],
+      'text-embedding-3-small',
+    );
 
     expect(result).toEqual([
       [1, 1],
@@ -100,7 +120,7 @@ describe('OpenAiCompatibleEmbeddingService', () => {
       of(axiosResponse({ data: [{ embedding: [0.7, 0.8], index: 0 }] })),
     );
 
-    const result = await service.embed('hello');
+    const result = await service.embed('hello', 'text-embedding-3-small');
 
     expect(httpService.post).toHaveBeenCalledWith(
       'https://api.openai.com/v1/embeddings',

@@ -43,7 +43,10 @@ describe('KnowledgeBaseMutationsResolver', () => {
       updatedAt: new Date(),
     } as any);
 
-    const input: CreateKnowledgeBaseGraphQLDto = { name: 'Docs' };
+    const input: CreateKnowledgeBaseGraphQLDto = {
+      name: 'Docs',
+      embeddingModel: 'text-embedding-3-small',
+    };
     const result = await resolver.createKnowledgeBase(input);
 
     expect(assertViewModelExists.execute).toHaveBeenCalledWith('kb-1');
@@ -54,6 +57,21 @@ describe('KnowledgeBaseMutationsResolver', () => {
     const id = 'e3c1a1b0-0000-4000-8000-000000000001';
 
     await resolver.updateKnowledgeBase({ name: 'Docs v2' }, id);
+
+    expect(commandBus.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: expect.objectContaining({ value: id }),
+      }),
+    );
+    expect(mutationResponseGraphQLMapper.toResponseDto).toHaveBeenCalledWith(
+      expect.objectContaining({ id }),
+    );
+  });
+
+  it('reembedKnowledgeBase dispatches with the caller’s own id', async () => {
+    const id = 'e3c1a1b0-0000-4000-8000-000000000001';
+
+    await resolver.reembedKnowledgeBase(id);
 
     expect(commandBus.execute).toHaveBeenCalledWith(
       expect.objectContaining({

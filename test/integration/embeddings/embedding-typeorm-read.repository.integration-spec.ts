@@ -12,7 +12,7 @@ import {
 } from '../../helpers/fixtures';
 import { EmbeddingsModule } from '../../../src/contexts/embeddings/embeddings.module';
 import { EmbeddingBuilder } from '../../../src/contexts/embeddings/domain/builders/embedding.builder';
-import { EMBEDDING_VECTOR_DIMENSIONS } from '../../../src/contexts/embeddings/domain/constants/embedding-vector-dimensions.constant';
+import { NoEmbeddingTableForDimensionException } from '../../../src/contexts/embeddings/domain/exceptions/no-embedding-table-for-dimension.exception';
 import {
   EMBEDDING_WRITE_REPOSITORY,
   IEmbeddingWriteRepository,
@@ -23,9 +23,12 @@ import {
 } from '../../../src/contexts/embeddings/domain/repositories/read/embedding-read.repository';
 import { KnowledgeBaseContext } from '../../../src/core/tenancy/knowledge-base-context.service';
 
-/** A 1536-dim vector that is all zeros except the given index/value pairs. */
-function buildVector(overrides: Record<number, number> = {}): number[] {
-  const vector = new Array(EMBEDDING_VECTOR_DIMENSIONS).fill(0);
+/** A vector of the given dimension that is all zeros except the overrides. */
+function buildVector(
+  dimensions: number,
+  overrides: Record<number, number> = {},
+): number[] {
+  const vector = new Array(dimensions).fill(0);
   for (const [index, value] of Object.entries(overrides)) {
     vector[Number(index)] = value;
   }
@@ -39,6 +42,7 @@ function buildEmbedding(
   vector: number[],
   position = 0,
   text = `chunk ${position}`,
+  model = 'test-model',
 ) {
   return new EmbeddingBuilder()
     .withId(randomUUID())
@@ -48,7 +52,8 @@ function buildEmbedding(
     .withChunkText(text)
     .withChunkPosition(position)
     .withEmbedding(vector)
-    .withModel('test-model')
+    .withDimensions(vector.length)
+    .withModel(model)
     .withCreatedAt(new Date())
     .withUpdatedAt(new Date())
     .build();
@@ -114,13 +119,13 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
       );
 
       // Query vector points purely along dimension 0.
-      const queryVector = buildVector({ 0: 1 });
+      const queryVector = buildVector(1536, { 0: 1 });
       // Identical direction to the query -> cosine similarity 1.
-      const nearVector = buildVector({ 0: 1 });
+      const nearVector = buildVector(1536, { 0: 1 });
       // 45 degrees off the query -> cosine similarity 1/sqrt(2) ~= 0.7071.
-      const midVector = buildVector({ 0: 1, 1: 1 });
+      const midVector = buildVector(1536, { 0: 1, 1: 1 });
       // Opposite direction to the query -> cosine similarity -1.
-      const farVector = buildVector({ 0: -1 });
+      const farVector = buildVector(1536, { 0: -1 });
 
       await knowledgeBaseContext.run(knowledgeBaseId, async () => {
         const near = buildEmbedding(
@@ -149,9 +154,14 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
         );
         // Insert out of similarity order to prove the repository, not the
         // insert order, determines the result ordering.
-        await writeRepo.saveMany([far, near, mid]);
+        await writeRepo.saveMany([far, near, mid], 1536);
 
-        const results = await readRepo.search(queryVector, 3);
+        const results = await readRepo.search(
+          queryVector,
+          3,
+          1536,
+          'test-model',
+        );
 
         expect(results).toHaveLength(3);
         expect(results.map((r) => r.chunkText)).toEqual(['near', 'mid', 'far']);
@@ -166,7 +176,7 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
     it('limits results to topK', async () => {
       const knowledgeBaseId = randomUUID();
       const documentId = randomUUID();
-      const queryVector = buildVector({ 0: 1 });
+      const queryVector = buildVector(1536, { 0: 1 });
       const chunkIds = [randomUUID(), randomUUID(), randomUUID()];
       await seedDocument(knowledgeBaseId, documentId);
       for (const [i, chunkId] of chunkIds.entries()) {
@@ -180,31 +190,39 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
       }
 
       await knowledgeBaseContext.run(knowledgeBaseId, async () => {
-        await writeRepo.saveMany([
-          buildEmbedding(
-            knowledgeBaseId,
-            documentId,
-            chunkIds[0],
-            buildVector({ 0: 1 }),
-            0,
-          ),
-          buildEmbedding(
-            knowledgeBaseId,
-            documentId,
-            chunkIds[1],
-            buildVector({ 0: 1 }),
-            1,
-          ),
-          buildEmbedding(
-            knowledgeBaseId,
-            documentId,
-            chunkIds[2],
-            buildVector({ 0: 1 }),
-            2,
-          ),
-        ]);
+        await writeRepo.saveMany(
+          [
+            buildEmbedding(
+              knowledgeBaseId,
+              documentId,
+              chunkIds[0],
+              buildVector(1536, { 0: 1 }),
+              0,
+            ),
+            buildEmbedding(
+              knowledgeBaseId,
+              documentId,
+              chunkIds[1],
+              buildVector(1536, { 0: 1 }),
+              1,
+            ),
+            buildEmbedding(
+              knowledgeBaseId,
+              documentId,
+              chunkIds[2],
+              buildVector(1536, { 0: 1 }),
+              2,
+            ),
+          ],
+          1536,
+        );
 
-        const results = await readRepo.search(queryVector, 2);
+        const results = await readRepo.search(
+          queryVector,
+          2,
+          1536,
+          'test-model',
+        );
 
         expect(results).toHaveLength(2);
       });
@@ -217,7 +235,7 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
       const documentIdTwo = randomUUID();
       const chunkIdOne = randomUUID();
       const chunkIdTwo = randomUUID();
-      const queryVector = buildVector({ 0: 1 });
+      const queryVector = buildVector(1536, { 0: 1 });
       await seedDocument(kbOneId, documentIdOne);
       await seedDocument(kbTwoId, documentIdTwo);
       await insertChunkFixture(
@@ -234,35 +252,274 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
       );
 
       await knowledgeBaseContext.run(kbOneId, () =>
-        writeRepo.saveMany([
-          buildEmbedding(
-            kbOneId,
-            documentIdOne,
-            chunkIdOne,
-            buildVector({ 0: 1 }),
-            0,
-            'kb one chunk',
-          ),
-        ]),
+        writeRepo.saveMany(
+          [
+            buildEmbedding(
+              kbOneId,
+              documentIdOne,
+              chunkIdOne,
+              buildVector(1536, { 0: 1 }),
+              0,
+              'kb one chunk',
+            ),
+          ],
+          1536,
+        ),
       );
       await knowledgeBaseContext.run(kbTwoId, () =>
-        writeRepo.saveMany([
-          buildEmbedding(
-            kbTwoId,
-            documentIdTwo,
-            chunkIdTwo,
-            buildVector({ 0: 1 }),
-            0,
-            'kb two chunk',
-          ),
-        ]),
+        writeRepo.saveMany(
+          [
+            buildEmbedding(
+              kbTwoId,
+              documentIdTwo,
+              chunkIdTwo,
+              buildVector(1536, { 0: 1 }),
+              0,
+              'kb two chunk',
+            ),
+          ],
+          1536,
+        ),
       );
 
       await knowledgeBaseContext.run(kbOneId, async () => {
-        const results = await readRepo.search(queryVector, 10);
+        const results = await readRepo.search(
+          queryVector,
+          10,
+          1536,
+          'test-model',
+        );
 
         expect(results).toHaveLength(1);
         expect(results[0].chunkText).toBe('kb one chunk');
+      });
+    });
+
+    it('two knowledge bases sharing a dimension (SC-06) only ever see their own rows', async () => {
+      const kbOneId = randomUUID();
+      const kbTwoId = randomUUID();
+      const documentIdOne = randomUUID();
+      const documentIdTwo = randomUUID();
+      const chunkIdOne = randomUUID();
+      const chunkIdTwo = randomUUID();
+      const queryVector = buildVector(1536, { 0: 1 });
+      await seedDocument(kbOneId, documentIdOne);
+      await seedDocument(kbTwoId, documentIdTwo);
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkIdOne,
+        documentIdOne,
+        kbOneId,
+      );
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkIdTwo,
+        documentIdTwo,
+        kbTwoId,
+      );
+
+      // Both models are 1536-dim, so both land in embedding_vectors_1536 —
+      // tenant scoping must still hold via the embeddings join.
+      await knowledgeBaseContext.run(kbOneId, () =>
+        writeRepo.saveMany(
+          [
+            buildEmbedding(
+              kbOneId,
+              documentIdOne,
+              chunkIdOne,
+              buildVector(1536, { 0: 1 }),
+              0,
+              'kb one chunk',
+              'text-embedding-3-small',
+            ),
+          ],
+          1536,
+        ),
+      );
+      await knowledgeBaseContext.run(kbTwoId, () =>
+        writeRepo.saveMany(
+          [
+            buildEmbedding(
+              kbTwoId,
+              documentIdTwo,
+              chunkIdTwo,
+              buildVector(1536, { 0: 1 }),
+              0,
+              'kb two chunk',
+              'text-embedding-ada-002',
+            ),
+          ],
+          1536,
+        ),
+      );
+
+      await knowledgeBaseContext.run(kbOneId, async () => {
+        const results = await readRepo.search(
+          queryVector,
+          10,
+          1536,
+          'text-embedding-3-small',
+        );
+        expect(results).toHaveLength(1);
+        expect(results[0].chunkText).toBe('kb one chunk');
+      });
+      await knowledgeBaseContext.run(kbTwoId, async () => {
+        const results = await readRepo.search(
+          queryVector,
+          10,
+          1536,
+          'text-embedding-ada-002',
+        );
+        expect(results).toHaveLength(1);
+        expect(results[0].chunkText).toBe('kb two chunk');
+      });
+    });
+
+    it('same knowledge base, two models sharing a dimension: search only sees the queried model’s rows', async () => {
+      const knowledgeBaseId = randomUUID();
+      const documentId = randomUUID();
+      const chunkIdOld = randomUUID();
+      const chunkIdNew = randomUUID();
+      const queryVector = buildVector(1536, { 0: 1 });
+      await seedDocument(knowledgeBaseId, documentId);
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkIdOld,
+        documentId,
+        knowledgeBaseId,
+        0,
+      );
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkIdNew,
+        documentId,
+        knowledgeBaseId,
+        1,
+      );
+
+      // Simulates rows left behind by a prior model — e.g. after a
+      // Knowledge Base's embeddingModel changed to a different model that
+      // happens to share the same dimension count. Both land in
+      // embedding_vectors_1536, so only the `model` filter (not dimension
+      // or knowledge_base_id alone) can tell them apart.
+      await knowledgeBaseContext.run(knowledgeBaseId, async () => {
+        await writeRepo.saveMany(
+          [
+            buildEmbedding(
+              knowledgeBaseId,
+              documentId,
+              chunkIdOld,
+              buildVector(1536, { 0: 1 }),
+              0,
+              'old model chunk',
+              'text-embedding-ada-002',
+            ),
+          ],
+          1536,
+        );
+        await writeRepo.saveMany(
+          [
+            buildEmbedding(
+              knowledgeBaseId,
+              documentId,
+              chunkIdNew,
+              buildVector(1536, { 0: 1 }),
+              1,
+              'new model chunk',
+              'text-embedding-3-small',
+            ),
+          ],
+          1536,
+        );
+
+        const results = await readRepo.search(
+          queryVector,
+          10,
+          1536,
+          'text-embedding-3-small',
+        );
+
+        expect(results).toHaveLength(1);
+        expect(results[0].chunkText).toBe('new model chunk');
+      });
+    });
+
+    it('only touches the table matching the resolved dimension, ignoring embeddings under a different dimension', async () => {
+      const knowledgeBaseId = randomUUID();
+      const documentId = randomUUID();
+      const chunkId1536 = randomUUID();
+      const chunkId768 = randomUUID();
+      await seedDocument(knowledgeBaseId, documentId);
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkId1536,
+        documentId,
+        knowledgeBaseId,
+        0,
+      );
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkId768,
+        documentId,
+        knowledgeBaseId,
+        1,
+      );
+
+      await knowledgeBaseContext.run(knowledgeBaseId, async () => {
+        await writeRepo.saveMany(
+          [
+            buildEmbedding(
+              knowledgeBaseId,
+              documentId,
+              chunkId1536,
+              buildVector(1536, { 0: 1 }),
+              0,
+              '1536-dim chunk',
+              'text-embedding-3-small',
+            ),
+          ],
+          1536,
+        );
+        await writeRepo.saveMany(
+          [
+            buildEmbedding(
+              knowledgeBaseId,
+              documentId,
+              chunkId768,
+              buildVector(768, { 0: 1 }),
+              1,
+              '768-dim chunk',
+              'nomic-embed-text',
+            ),
+          ],
+          768,
+        );
+
+        const results1536 = await readRepo.search(
+          buildVector(1536, { 0: 1 }),
+          10,
+          1536,
+          'text-embedding-3-small',
+        );
+        expect(results1536).toHaveLength(1);
+        expect(results1536[0].chunkText).toBe('1536-dim chunk');
+
+        const results768 = await readRepo.search(
+          buildVector(768, { 0: 1 }),
+          10,
+          768,
+          'nomic-embed-text',
+        );
+        expect(results768).toHaveLength(1);
+        expect(results768[0].chunkText).toBe('768-dim chunk');
+      });
+    });
+
+    it('throws NoEmbeddingTableForDimensionException for an unregistered dimension', async () => {
+      await knowledgeBaseContext.run(randomUUID(), async () => {
+        await expect(
+          readRepo.search(buildVector(999, { 0: 1 }), 10, 999, 'test-model'),
+        ).rejects.toBeInstanceOf(NoEmbeddingTableForDimensionException);
       });
     });
   });

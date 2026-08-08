@@ -16,8 +16,14 @@ describe('KnowledgeBases REST (e2e)', () => {
     await truncateAll(ctx.dataSource);
   });
 
-  async function createKnowledgeBase(name = 'Docs') {
-    const res = await ctx.http().post('/api/v1/knowledge-bases').send({ name });
+  async function createKnowledgeBase(
+    name = 'Docs',
+    embeddingModel = 'text-embedding-3-small',
+  ) {
+    const res = await ctx
+      .http()
+      .post('/api/v1/knowledge-bases')
+      .send({ name, embeddingModel });
     return res.body as { id: string; apiKey: string; name: string };
   }
 
@@ -25,7 +31,7 @@ describe('KnowledgeBases REST (e2e)', () => {
     const res = await ctx
       .http()
       .post('/api/v1/knowledge-bases')
-      .send({ name: 'Docs' });
+      .send({ name: 'Docs', embeddingModel: 'text-embedding-3-small' });
 
     expect(res.status).toBe(201);
     expect(res.body.apiKey).toMatch(/^kb_/);
@@ -37,7 +43,7 @@ describe('KnowledgeBases REST (e2e)', () => {
     const res = await ctx
       .http()
       .post('/api/v1/knowledge-bases')
-      .send({ name: 'Docs' });
+      .send({ name: 'Docs', embeddingModel: 'text-embedding-3-small' });
 
     expect(res.status).toBe(201);
   });

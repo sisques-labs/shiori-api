@@ -11,6 +11,15 @@ export class KnowledgeBaseRestResponseDto {
   @ApiPropertyOptional({ nullable: true })
   description!: string | null;
 
+  @ApiProperty({ description: 'Current embedding model id' })
+  embeddingModel!: string;
+
+  @ApiProperty({
+    description: 'READY | REEMBEDDING | FAILED',
+    enum: ['READY', 'REEMBEDDING', 'FAILED'],
+  })
+  embeddingStatus!: string;
+
   @ApiProperty()
   createdAt!: Date;
 

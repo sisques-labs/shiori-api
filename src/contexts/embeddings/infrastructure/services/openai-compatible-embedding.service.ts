@@ -13,13 +13,14 @@ interface OpenAiEmbeddingsResponse {
 /**
  * Default IEmbeddingPort implementation — calls an OpenAI-compatible
  * `/embeddings` endpoint (works against OpenAI itself, Ollama, LM Studio,
- * or any other server implementing the same request/response shape).
+ * or any other server implementing the same request/response shape). The
+ * model is passed explicitly per call (resolved per-Knowledge-Base by the
+ * caller) — this service holds no model of its own.
  */
 @Injectable()
 export class OpenAiCompatibleEmbeddingService implements IEmbeddingPort {
   private readonly baseUrl: string;
   private readonly apiKey: string;
-  private readonly model: string;
 
   constructor(
     private readonly httpService: HttpService,
@@ -28,19 +29,18 @@ export class OpenAiCompatibleEmbeddingService implements IEmbeddingPort {
     const config = configService.getOrThrow<EmbeddingsConfig>('embeddings');
     this.baseUrl = config.embeddingBaseUrl;
     this.apiKey = config.embeddingApiKey;
-    this.model = config.embeddingModel;
   }
 
-  async embed(text: string): Promise<number[]> {
-    const [embedding] = await this.embedBatch([text]);
+  async embed(text: string, model: string): Promise<number[]> {
+    const [embedding] = await this.embedBatch([text], model);
     return embedding;
   }
 
-  async embedBatch(texts: string[]): Promise<number[][]> {
+  async embedBatch(texts: string[], model: string): Promise<number[][]> {
     const { data } = await firstValueFrom(
       this.httpService.post<OpenAiEmbeddingsResponse>(
         `${this.baseUrl}/embeddings`,
-        { input: texts, model: this.model },
+        { input: texts, model },
         {
           headers: { Authorization: `Bearer ${this.apiKey}` },
         },
