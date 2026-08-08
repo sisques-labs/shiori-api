@@ -10,10 +10,18 @@ import { DocumentStatusEnum } from '../../src/contexts/documents/domain/enums/do
 export async function insertKnowledgeBaseFixture(
   dataSource: DataSource,
   id: string,
+  embeddingModel = 'text-embedding-3-small',
+  embeddingStatus = 'READY',
 ): Promise<void> {
   await dataSource.query(
-    `INSERT INTO "knowledge_bases" ("id", "name", "api_key_hash") VALUES ($1, $2, $3)`,
-    [id, `Fixture KB ${id}`, `fixture-hash-${id}`],
+    `INSERT INTO "knowledge_bases" ("id", "name", "api_key_hash", "embedding_model", "embedding_status") VALUES ($1, $2, $3, $4, $5)`,
+    [
+      id,
+      `Fixture KB ${id}`,
+      `fixture-hash-${id}`,
+      embeddingModel,
+      embeddingStatus,
+    ],
   );
 }
 

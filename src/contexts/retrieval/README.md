@@ -27,6 +27,14 @@ RetrievalSearchQueryHandler.execute(query)
   └─ EmbeddingSearchPort.search(query.query, topK)   — via embeddings' QueryBus
 ```
 
+If the target Knowledge Base's `embeddingStatus` is `REEMBEDDING` or
+`FAILED`, `embeddings`' own `EmbeddingSearchQueryHandler` rejects with
+`KnowledgeBaseNotReadyForSearchException` before this context ever sees a
+result — surfaced here as HTTP 409 by the global exception filter (mapped
+in `embeddings`' own `embeddings-exception.filter.ts`, since the exception
+is thrown from that context and propagates unchanged; `retrieval` needs no
+exception filter of its own for this).
+
 ## Cross-context search capability
 
 `retrieval` never touches embedding data or generation directly. There is
@@ -49,5 +57,7 @@ repository token.
 | `RETRIEVAL_SEARCH_TOP_K_DEFAULT` | 5 | Results returned when `topK` is omitted |
 | `RETRIEVAL_SEARCH_TOP_K_MAX` | 20 | Hard cap on `topK`, regardless of what a caller requests |
 
-Embedding-generation env vars (`EMBEDDINGS_BASE_URL`, `EMBEDDINGS_API_KEY`,
-`EMBEDDINGS_MODEL`) live in `embeddings`, not here.
+Embedding-generation env vars (`EMBEDDINGS_BASE_URL`, `EMBEDDINGS_API_KEY`)
+live in `embeddings`, not here — there is no `EMBEDDINGS_MODEL` var, since
+the model is a per-Knowledge-Base setting (see `embeddings/README.md` and
+`knowledge-bases/README.md`).

@@ -4,12 +4,16 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { TenancyModule } from '@core/tenancy/tenancy.module';
 
+import { ChangeKnowledgeBaseEmbeddingModelCommandHandler } from './application/commands/change-knowledge-base-embedding-model/change-knowledge-base-embedding-model.handler';
+import { CompleteKnowledgeBaseReembeddingCommandHandler } from './application/commands/complete-knowledge-base-reembedding/complete-knowledge-base-reembedding.handler';
 import { CreateKnowledgeBaseCommandHandler } from './application/commands/create-knowledge-base/create-knowledge-base.handler';
 import { DeleteKnowledgeBaseCommandHandler } from './application/commands/delete-knowledge-base/delete-knowledge-base.handler';
+import { FailKnowledgeBaseReembeddingCommandHandler } from './application/commands/fail-knowledge-base-reembedding/fail-knowledge-base-reembedding.handler';
 import { RotateKnowledgeBaseApiKeyCommandHandler } from './application/commands/rotate-knowledge-base-api-key/rotate-knowledge-base-api-key.handler';
 import { UpdateKnowledgeBaseCommandHandler } from './application/commands/update-knowledge-base/update-knowledge-base.handler';
 import { KnowledgeBaseFindByApiKeyHashQueryHandler } from './application/queries/knowledge-base-find-by-api-key-hash/knowledge-base-find-by-api-key-hash.handler';
 import { KnowledgeBaseFindByIdQueryHandler } from './application/queries/knowledge-base-find-by-id/knowledge-base-find-by-id.handler';
+import { EMBEDDING_MODEL_VALIDATION_PORT } from './application/ports/embedding-model-validation.port';
 import { HASH_API_KEY_PORT } from './application/ports/hash-api-key.port';
 import { AssertKnowledgeBaseViewModelExistsService } from './application/services/read/assert-knowledge-base-view-model-exists/assert-knowledge-base-view-model-exists.service';
 import { AssertEmbeddingModelIsValidService } from './application/services/write/assert-embedding-model-is-valid/assert-embedding-model-is-valid.service';
@@ -20,6 +24,7 @@ import { IsKnowledgeBaseEmbeddingModelUnchangedService } from './application/ser
 import { KnowledgeBaseBuilder } from './domain/builders/knowledge-base.builder';
 import { KNOWLEDGE_BASE_READ_REPOSITORY } from './domain/repositories/read/knowledge-base-read.repository';
 import { KNOWLEDGE_BASE_WRITE_REPOSITORY } from './domain/repositories/write/knowledge-base-write.repository';
+import { EmbeddingModelValidationAdapter } from './infrastructure/adapters/embedding-model-validation.adapter';
 import { HashApiKeyAdapter } from './infrastructure/adapters/hash-api-key.adapter';
 import { KnowledgeBaseTypeOrmEntity } from './infrastructure/persistence/typeorm/entities/knowledge-base.entity';
 import { KnowledgeBaseTypeOrmMapper } from './infrastructure/persistence/typeorm/mappers/knowledge-base-typeorm.mapper';
@@ -36,6 +41,9 @@ const COMMAND_HANDLERS = [
   UpdateKnowledgeBaseCommandHandler,
   DeleteKnowledgeBaseCommandHandler,
   RotateKnowledgeBaseApiKeyCommandHandler,
+  ChangeKnowledgeBaseEmbeddingModelCommandHandler,
+  CompleteKnowledgeBaseReembeddingCommandHandler,
+  FailKnowledgeBaseReembeddingCommandHandler,
 ];
 
 const QUERY_HANDLERS = [
@@ -72,6 +80,10 @@ const INFRASTRUCTURE_REPOSITORIES = [
 // injecting the service directly, same discipline as a cross-context port.
 const INFRASTRUCTURE_ADAPTERS = [
   { provide: HASH_API_KEY_PORT, useClass: HashApiKeyAdapter },
+  {
+    provide: EMBEDDING_MODEL_VALIDATION_PORT,
+    useClass: EmbeddingModelValidationAdapter,
+  },
 ];
 
 const REST_CONTROLLERS = [KnowledgeBasesController];
