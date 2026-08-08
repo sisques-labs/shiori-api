@@ -78,12 +78,19 @@ export class EmbeddingBuilder extends BaseBuilder<
       throw new FieldIsRequiredException('chunkText');
     if (this._embedding == null)
       throw new FieldIsRequiredException('embedding');
-    if (!this._dimensions) throw new FieldIsRequiredException('dimensions');
     if (!this._model) throw new FieldIsRequiredException('model');
   }
 
   public override build(): EmbeddingAggregate {
     this.validate();
+    // `dimensions` is only required to build the full aggregate (it's
+    // needed to construct `EmbeddingVectorValueObject`) — not for
+    // `buildViewModel()`, whose `EmbeddingViewModel` just stores the raw
+    // `embedding: number[]` with no dimension of its own. Checked here
+    // rather than in shared `validate()` so callers that only ever build a
+    // view model (e.g. the read-side mapper) don't have to call
+    // `withDimensions()` for a value they never use.
+    if (!this._dimensions) throw new FieldIsRequiredException('dimensions');
     return new EmbeddingAggregate({
       id: new EmbeddingIdValueObject(this._id),
       knowledgeBaseId: new UuidValueObject(this._knowledgeBaseId),
