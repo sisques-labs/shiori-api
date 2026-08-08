@@ -1,13 +1,26 @@
 import './instrument';
 
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import {
+  ValidationPipe,
+  VersioningType,
+  VERSION_NEUTRAL,
+} from '@nestjs/common';
+import { VERSION_METADATA } from '@nestjs/common/constants';
 import { ConfigService } from '@nestjs/config';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { MetricsController } from '@sisques-labs/nestjs-kit/metrics';
+import { McpController } from '@sisques-labs/nestjs-kit/mcp';
 
 import { AppModule } from './app.module';
 import { BaseExceptionFilter } from './core/filters/base-exception.filter';
+
+// These controllers ship inside @sisques-labs/nestjs-kit without a version,
+// so URI versioning below would otherwise move them to /api/v1/*. Scraper and
+// MCP client configs expect the stable, unversioned paths, so pin them here.
+Reflect.defineMetadata(VERSION_METADATA, VERSION_NEUTRAL, MetricsController);
+Reflect.defineMetadata(VERSION_METADATA, VERSION_NEUTRAL, McpController);
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -15,6 +28,10 @@ async function bootstrap() {
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 
   app.setGlobalPrefix('api');
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: '1',
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -31,9 +48,12 @@ async function bootstrap() {
     .setTitle('Shiori API')
     .setDescription('Shiori — open-source RAG platform')
     .setVersion('0.0.0')
+    .addApiKey({ type: 'apiKey', in: 'header', name: 'x-api-key' }, 'x-api-key')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('docs', app, document);
+  SwaggerModule.setup('docs', app, document, {
+    swaggerOptions: { persistAuthorization: true },
+  });
 
   const corsOrigins = app
     .get(ConfigService)
@@ -42,7 +62,8 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
-  console.log(`Listening on http://localhost:${port}/api`);
+  console.log(`Listening on http://localhost:${port}/api/v1`);
+  console.log(`Swagger docs at http://localhost:${port}/docs`);
 }
 bootstrap().catch((error: unknown) => {
   console.error('Failed to start the application', error);

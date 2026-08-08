@@ -44,7 +44,7 @@ describe('Documents GraphQL (e2e)', () => {
   `;
 
   async function createKnowledgeBase(name = 'Docs KB') {
-    const res = await ctx.http().post('/api/knowledge-bases').send({ name });
+    const res = await ctx.http().post('/api/v1/knowledge-bases').send({ name });
     return res.body as { id: string; apiKey: string; name: string };
   }
 

@@ -1,12 +1,25 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import {
+  INestApplication,
+  ValidationPipe,
+  VersioningType,
+  VERSION_NEUTRAL,
+} from '@nestjs/common';
+import { VERSION_METADATA } from '@nestjs/common/constants';
 import { Test } from '@nestjs/testing';
 import { getDataSourceToken } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
+import { MetricsController } from '@sisques-labs/nestjs-kit/metrics';
+import { McpController } from '@sisques-labs/nestjs-kit/mcp';
 
 import { AppModule } from '../../src/app.module';
 import { BaseExceptionFilter } from '../../src/core/filters/base-exception.filter';
 import { bootstrapTestDataSource } from './test-data-source';
+
+// Mirrors the pin in src/main.ts: these ship without a version, so URI
+// versioning would otherwise move them under /api/v1/*.
+Reflect.defineMetadata(VERSION_METADATA, VERSION_NEUTRAL, MetricsController);
+Reflect.defineMetadata(VERSION_METADATA, VERSION_NEUTRAL, McpController);
 
 export interface E2EContext {
   app: INestApplication;
@@ -50,6 +63,10 @@ export async function createE2EApp(
   const app = moduleFixture.createNestApplication();
 
   app.setGlobalPrefix('api');
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: '1',
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({
