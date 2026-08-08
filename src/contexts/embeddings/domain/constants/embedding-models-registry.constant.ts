@@ -32,4 +32,5 @@ export const EMBEDDING_MODELS_REGISTRY: readonly EmbeddingModelDefinition[] = [
   { id: 'text-embedding-ada-002', provider: 'openai', dimensions: 1536 },
   { id: 'nomic-embed-text', provider: 'ollama', dimensions: 768 },
   { id: 'mxbai-embed-large', provider: 'ollama', dimensions: 1024 },
+  { id: 'qwen3-embedding', provider: 'ollama', dimensions: 1024 },
 ];
