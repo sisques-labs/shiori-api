@@ -3,11 +3,17 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import { CreateKnowledgeBases1780000000001 } from '../../src/database/migrations/1780000000001-CreateKnowledgeBases';
 import { CreateDocuments1780000000002 } from '../../src/database/migrations/1780000000002-CreateDocuments';
 import { CreateEmbeddings1780000000003 } from '../../src/database/migrations/1780000000003-CreateEmbeddings';
+import { AddEmbeddingConfigToKnowledgeBases1780000000004 } from '../../src/database/migrations/1780000000004-AddEmbeddingConfigToKnowledgeBases';
+import { DropEmbeddingColumnFromEmbeddings1780000000005 } from '../../src/database/migrations/1780000000005-DropEmbeddingColumnFromEmbeddings';
+import { CreateEmbeddingVectorTables1780000000006 } from '../../src/database/migrations/1780000000006-CreateEmbeddingVectorTables';
 
 const TEST_MIGRATIONS: DataSourceOptions['migrations'] = [
   CreateKnowledgeBases1780000000001,
   CreateDocuments1780000000002,
   CreateEmbeddings1780000000003,
+  AddEmbeddingConfigToKnowledgeBases1780000000004,
+  DropEmbeddingColumnFromEmbeddings1780000000005,
+  CreateEmbeddingVectorTables1780000000006,
 ];
 
 export function getTestDataSourceOptions(): DataSourceOptions {

@@ -10,6 +10,13 @@ export const TRUNCATE_TABLES: readonly string[] = [
   'documents',
   'chunks',
   'embeddings',
+  // FK'd to embeddings.id (ON DELETE CASCADE) — TRUNCATE ... CASCADE below
+  // would catch these automatically even if omitted, but listed explicitly
+  // per this file's own "update when a new table is added" convention.
+  'embedding_vectors_768',
+  'embedding_vectors_1024',
+  'embedding_vectors_1536',
+  'embedding_vectors_3072',
 ];
 
 /**
