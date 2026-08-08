@@ -37,8 +37,13 @@ describe('KnowledgeBases GraphQL (e2e)', () => {
     }
   `;
 
-  async function createKnowledgeBase(name = 'Docs') {
-    const res = await gql(ctx.app, CREATE_MUTATION, { input: { name } });
+  async function createKnowledgeBase(
+    name = 'Docs',
+    embeddingModel = 'text-embedding-3-small',
+  ) {
+    const res = await gql(ctx.app, CREATE_MUTATION, {
+      input: { name, embeddingModel },
+    });
     return res.body.data.createKnowledgeBase as {
       id: string;
       name: string;
@@ -48,7 +53,7 @@ describe('KnowledgeBases GraphQL (e2e)', () => {
 
   it('SC-01: createKnowledgeBase returns the plaintext apiKey', async () => {
     const res = await gql(ctx.app, CREATE_MUTATION, {
-      input: { name: 'Docs' },
+      input: { name: 'Docs', embeddingModel: 'text-embedding-3-small' },
     });
 
     expect(res.status).toBe(200);

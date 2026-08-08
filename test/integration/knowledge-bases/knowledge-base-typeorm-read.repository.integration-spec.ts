@@ -44,6 +44,7 @@ describe('KnowledgeBaseTypeOrmReadRepository (integration)', () => {
         .withId(randomUUID())
         .withName('Docs')
         .withApiKeyHash(hash)
+        .withEmbeddingModel('text-embedding-3-small')
         .withCreatedAt(NOW)
         .withUpdatedAt(NOW)
         .build();
@@ -68,6 +69,7 @@ describe('KnowledgeBaseTypeOrmReadRepository (integration)', () => {
         .withId(randomUUID())
         .withName('Docs')
         .withApiKeyHash('e'.repeat(64))
+        .withEmbeddingModel('text-embedding-3-small')
         .withCreatedAt(NOW)
         .withUpdatedAt(NOW)
         .build();
