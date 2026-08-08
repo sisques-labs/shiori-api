@@ -231,11 +231,14 @@ describe('Retrieval REST (e2e)', () => {
   it('POST /api/v1/retrieval/search returns 409 while the knowledge base is REEMBEDDING', async () => {
     const kb = await createKnowledgeBase('Reembedding KB');
 
-    await ctx
-      .http()
-      .patch('/api/v1/knowledge-bases/me/embedding-model')
-      .set('X-API-Key', kb.apiKey)
-      .send({ embeddingModel: 'nomic-embed-text' });
+    // Set the status directly rather than triggering it via the
+    // change-embedding-model endpoint: that queues a real BullMQ job which
+    // can finish (0 documents to re-embed) before this test's follow-up
+    // request runs, racing the very state under test.
+    await ctx.dataSource.query(
+      `UPDATE knowledge_bases SET embedding_status = 'REEMBEDDING' WHERE id = $1`,
+      [kb.id],
+    );
 
     const res = await ctx
       .http()
