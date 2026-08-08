@@ -12,8 +12,11 @@ import { KnowledgeBaseFindByApiKeyHashQueryHandler } from './application/queries
 import { KnowledgeBaseFindByIdQueryHandler } from './application/queries/knowledge-base-find-by-id/knowledge-base-find-by-id.handler';
 import { HASH_API_KEY_PORT } from './application/ports/hash-api-key.port';
 import { AssertKnowledgeBaseViewModelExistsService } from './application/services/read/assert-knowledge-base-view-model-exists/assert-knowledge-base-view-model-exists.service';
+import { AssertEmbeddingModelIsValidService } from './application/services/write/assert-embedding-model-is-valid/assert-embedding-model-is-valid.service';
 import { GenerateApiKeyService } from './application/services/write/generate-api-key/generate-api-key.service';
 import { AssertKnowledgeBaseExistsService } from './application/services/write/assert-knowledge-base-exists/assert-knowledge-base-exists.service';
+import { AssertKnowledgeBaseNotReembeddingService } from './application/services/write/assert-knowledge-base-not-reembedding/assert-knowledge-base-not-reembedding.service';
+import { IsKnowledgeBaseEmbeddingModelUnchangedService } from './application/services/write/is-knowledge-base-embedding-model-unchanged/is-knowledge-base-embedding-model-unchanged.service';
 import { KnowledgeBaseBuilder } from './domain/builders/knowledge-base.builder';
 import { KNOWLEDGE_BASE_READ_REPOSITORY } from './domain/repositories/read/knowledge-base-read.repository';
 import { KNOWLEDGE_BASE_WRITE_REPOSITORY } from './domain/repositories/write/knowledge-base-write.repository';
@@ -44,6 +47,9 @@ const APPLICATION_SERVICES = [
   GenerateApiKeyService,
   AssertKnowledgeBaseExistsService,
   AssertKnowledgeBaseViewModelExistsService,
+  AssertEmbeddingModelIsValidService,
+  IsKnowledgeBaseEmbeddingModelUnchangedService,
+  AssertKnowledgeBaseNotReembeddingService,
 ];
 
 const DOMAIN_BUILDERS = [KnowledgeBaseBuilder];

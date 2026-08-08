@@ -3,18 +3,14 @@ import { CommandHandler, EventBus, ICommandHandler } from '@nestjs/cqrs';
 import { BaseCommandHandler } from '@sisques-labs/nestjs-kit';
 
 import { KnowledgeBaseAggregate } from '@contexts/knowledge-bases/domain/aggregates/knowledge-base.aggregate';
-import { KnowledgeBaseEmbeddingStatusEnum } from '@contexts/knowledge-bases/domain/enums/knowledge-base-embedding-status.enum';
-import { InvalidEmbeddingModelException } from '@contexts/knowledge-bases/domain/exceptions/invalid-embedding-model.exception';
-import { KnowledgeBaseReembeddingInProgressException } from '@contexts/knowledge-bases/domain/exceptions/knowledge-base-reembedding-in-progress.exception';
 import {
   KNOWLEDGE_BASE_WRITE_REPOSITORY,
   IKnowledgeBaseWriteRepository,
 } from '@contexts/knowledge-bases/domain/repositories/write/knowledge-base-write.repository';
+import { AssertEmbeddingModelIsValidService } from '@contexts/knowledge-bases/application/services/write/assert-embedding-model-is-valid/assert-embedding-model-is-valid.service';
 import { AssertKnowledgeBaseExistsService } from '@contexts/knowledge-bases/application/services/write/assert-knowledge-base-exists/assert-knowledge-base-exists.service';
-import {
-  EMBEDDING_MODEL_VALIDATION_PORT,
-  IEmbeddingModelValidationPort,
-} from '@contexts/knowledge-bases/application/ports/embedding-model-validation.port';
+import { AssertKnowledgeBaseNotReembeddingService } from '@contexts/knowledge-bases/application/services/write/assert-knowledge-base-not-reembedding/assert-knowledge-base-not-reembedding.service';
+import { IsKnowledgeBaseEmbeddingModelUnchangedService } from '@contexts/knowledge-bases/application/services/write/is-knowledge-base-embedding-model-unchanged/is-knowledge-base-embedding-model-unchanged.service';
 
 import { ChangeKnowledgeBaseEmbeddingModelCommand } from './change-knowledge-base-embedding-model.command';
 
@@ -34,8 +30,9 @@ export class ChangeKnowledgeBaseEmbeddingModelCommandHandler
     @Inject(KNOWLEDGE_BASE_WRITE_REPOSITORY)
     private readonly writeRepository: IKnowledgeBaseWriteRepository,
     private readonly assertExists: AssertKnowledgeBaseExistsService,
-    @Inject(EMBEDDING_MODEL_VALIDATION_PORT)
-    private readonly embeddingModelValidation: IEmbeddingModelValidationPort,
+    private readonly assertEmbeddingModelIsValid: AssertEmbeddingModelIsValidService,
+    private readonly isEmbeddingModelUnchanged: IsKnowledgeBaseEmbeddingModelUnchangedService,
+    private readonly assertNotReembedding: AssertKnowledgeBaseNotReembeddingService,
     eventBus: EventBus,
   ) {
     super(eventBus);
@@ -46,29 +43,26 @@ export class ChangeKnowledgeBaseEmbeddingModelCommandHandler
   ): Promise<void> {
     const knowledgeBase = await this.assertExists.execute(command.id);
 
-    const isValidModel = await this.embeddingModelValidation.isValid(
+    await this.assertEmbeddingModelIsValid.execute(
       command.embeddingModel.value,
     );
-    if (!isValidModel) {
-      throw new InvalidEmbeddingModelException(command.embeddingModel.value);
-    }
 
     // No-op check comes BEFORE the re-embedding-in-progress check — calling
     // this with the Knowledge Base's current model is always idempotent
     // and side-effect-free, even mid-re-embed.
-    if (knowledgeBase.embeddingModel.equals(command.embeddingModel)) {
+    if (
+      this.isEmbeddingModelUnchanged.execute(
+        knowledgeBase,
+        command.embeddingModel,
+      )
+    ) {
       this.logger.log(
         `KnowledgeBase embedding model unchanged (no-op): ${command.id.value}`,
       );
       return;
     }
 
-    if (
-      knowledgeBase.embeddingStatus.value ===
-      KnowledgeBaseEmbeddingStatusEnum.REEMBEDDING
-    ) {
-      throw new KnowledgeBaseReembeddingInProgressException(command.id.value);
-    }
+    this.assertNotReembedding.execute(knowledgeBase);
 
     knowledgeBase.changeEmbeddingModel(command.embeddingModel);
 

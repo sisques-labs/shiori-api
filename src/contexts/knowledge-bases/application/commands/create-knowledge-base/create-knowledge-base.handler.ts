@@ -4,16 +4,12 @@ import { BaseCommandHandler, UuidValueObject } from '@sisques-labs/nestjs-kit';
 
 import { KnowledgeBaseAggregate } from '@contexts/knowledge-bases/domain/aggregates/knowledge-base.aggregate';
 import { KnowledgeBaseBuilder } from '@contexts/knowledge-bases/domain/builders/knowledge-base.builder';
-import { InvalidEmbeddingModelException } from '@contexts/knowledge-bases/domain/exceptions/invalid-embedding-model.exception';
 import {
   KNOWLEDGE_BASE_WRITE_REPOSITORY,
   IKnowledgeBaseWriteRepository,
 } from '@contexts/knowledge-bases/domain/repositories/write/knowledge-base-write.repository';
+import { AssertEmbeddingModelIsValidService } from '@contexts/knowledge-bases/application/services/write/assert-embedding-model-is-valid/assert-embedding-model-is-valid.service';
 import { GenerateApiKeyService } from '@contexts/knowledge-bases/application/services/write/generate-api-key/generate-api-key.service';
-import {
-  EMBEDDING_MODEL_VALIDATION_PORT,
-  IEmbeddingModelValidationPort,
-} from '@contexts/knowledge-bases/application/ports/embedding-model-validation.port';
 import {
   HASH_API_KEY_PORT,
   IHashApiKeyPort,
@@ -41,8 +37,7 @@ export class CreateKnowledgeBaseCommandHandler
     private readonly generateApiKey: GenerateApiKeyService,
     @Inject(HASH_API_KEY_PORT)
     private readonly hashApiKey: IHashApiKeyPort,
-    @Inject(EMBEDDING_MODEL_VALIDATION_PORT)
-    private readonly embeddingModelValidation: IEmbeddingModelValidationPort,
+    private readonly assertEmbeddingModelIsValid: AssertEmbeddingModelIsValidService,
     eventBus: EventBus,
   ) {
     super(eventBus);
@@ -51,12 +46,9 @@ export class CreateKnowledgeBaseCommandHandler
   async execute(
     command: CreateKnowledgeBaseCommand,
   ): Promise<CreateKnowledgeBaseResult> {
-    const isValidModel = await this.embeddingModelValidation.isValid(
+    await this.assertEmbeddingModelIsValid.execute(
       command.embeddingModel.value,
     );
-    if (!isValidModel) {
-      throw new InvalidEmbeddingModelException(command.embeddingModel.value);
-    }
 
     const now = new Date();
     const id = UuidValueObject.generate().value;

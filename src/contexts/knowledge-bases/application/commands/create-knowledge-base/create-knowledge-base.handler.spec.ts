@@ -1,8 +1,9 @@
 import { EventBus } from '@nestjs/cqrs';
 
 import { IEmbeddingModelValidationPort } from '@contexts/knowledge-bases/application/ports/embedding-model-validation.port';
+import { AssertEmbeddingModelIsValidService } from '@contexts/knowledge-bases/application/services/write/assert-embedding-model-is-valid/assert-embedding-model-is-valid.service';
 import { KnowledgeBaseBuilder } from '@contexts/knowledge-bases/domain/builders/knowledge-base.builder';
-import { InvalidEmbeddingModelException } from '@contexts/knowledge-bases/domain/exceptions/invalid-embedding-model.exception';
+import { InvalidKnowledgeBaseEmbeddingModelException } from '@contexts/knowledge-bases/domain/exceptions/invalid-knowledge-base-embedding-model.exception';
 import { IKnowledgeBaseWriteRepository } from '@contexts/knowledge-bases/domain/repositories/write/knowledge-base-write.repository';
 import { GenerateApiKeyService } from '@contexts/knowledge-bases/application/services/write/generate-api-key/generate-api-key.service';
 import { IHashApiKeyPort } from '@contexts/knowledge-bases/application/ports/hash-api-key.port';
@@ -16,6 +17,7 @@ describe('CreateKnowledgeBaseCommandHandler', () => {
   let eventBus: jest.Mocked<EventBus>;
   let hashApiKey: IHashApiKeyPort;
   let embeddingModelValidation: jest.Mocked<IEmbeddingModelValidationPort>;
+  let assertEmbeddingModelIsValid: AssertEmbeddingModelIsValidService;
   let handler: CreateKnowledgeBaseCommandHandler;
 
   beforeEach(() => {
@@ -31,13 +33,16 @@ describe('CreateKnowledgeBaseCommandHandler', () => {
         Promise.resolve(new HashApiKeyService().execute(rawKey)),
     };
     embeddingModelValidation = { isValid: jest.fn().mockResolvedValue(true) };
+    assertEmbeddingModelIsValid = new AssertEmbeddingModelIsValidService(
+      embeddingModelValidation,
+    );
 
     handler = new CreateKnowledgeBaseCommandHandler(
       writeRepository,
       new KnowledgeBaseBuilder(),
       new GenerateApiKeyService(),
       hashApiKey,
-      embeddingModelValidation,
+      assertEmbeddingModelIsValid,
       eventBus,
     );
   });
@@ -92,7 +97,7 @@ describe('CreateKnowledgeBaseCommandHandler', () => {
     });
 
     await expect(handler.execute(command)).rejects.toBeInstanceOf(
-      InvalidEmbeddingModelException,
+      InvalidKnowledgeBaseEmbeddingModelException,
     );
     expect(writeRepository.save).not.toHaveBeenCalled();
   });

@@ -2,9 +2,12 @@ import { EventBus } from '@nestjs/cqrs';
 import { DateValueObject } from '@sisques-labs/nestjs-kit';
 
 import { IEmbeddingModelValidationPort } from '@contexts/knowledge-bases/application/ports/embedding-model-validation.port';
+import { AssertEmbeddingModelIsValidService } from '@contexts/knowledge-bases/application/services/write/assert-embedding-model-is-valid/assert-embedding-model-is-valid.service';
 import { AssertKnowledgeBaseExistsService } from '@contexts/knowledge-bases/application/services/write/assert-knowledge-base-exists/assert-knowledge-base-exists.service';
+import { AssertKnowledgeBaseNotReembeddingService } from '@contexts/knowledge-bases/application/services/write/assert-knowledge-base-not-reembedding/assert-knowledge-base-not-reembedding.service';
+import { IsKnowledgeBaseEmbeddingModelUnchangedService } from '@contexts/knowledge-bases/application/services/write/is-knowledge-base-embedding-model-unchanged/is-knowledge-base-embedding-model-unchanged.service';
 import { KnowledgeBaseAggregate } from '@contexts/knowledge-bases/domain/aggregates/knowledge-base.aggregate';
-import { InvalidEmbeddingModelException } from '@contexts/knowledge-bases/domain/exceptions/invalid-embedding-model.exception';
+import { InvalidKnowledgeBaseEmbeddingModelException } from '@contexts/knowledge-bases/domain/exceptions/invalid-knowledge-base-embedding-model.exception';
 import { KnowledgeBaseReembeddingInProgressException } from '@contexts/knowledge-bases/domain/exceptions/knowledge-base-reembedding-in-progress.exception';
 import { IKnowledgeBaseWriteRepository } from '@contexts/knowledge-bases/domain/repositories/write/knowledge-base-write.repository';
 import { KnowledgeBaseApiKeyHashValueObject } from '@contexts/knowledge-bases/domain/value-objects/knowledge-base-api-key-hash/knowledge-base-api-key-hash.value-object';
@@ -39,6 +42,9 @@ describe('ChangeKnowledgeBaseEmbeddingModelCommandHandler', () => {
   let writeRepository: jest.Mocked<IKnowledgeBaseWriteRepository>;
   let assertExists: jest.Mocked<AssertKnowledgeBaseExistsService>;
   let embeddingModelValidation: jest.Mocked<IEmbeddingModelValidationPort>;
+  let assertEmbeddingModelIsValid: AssertEmbeddingModelIsValidService;
+  let isEmbeddingModelUnchanged: IsKnowledgeBaseEmbeddingModelUnchangedService;
+  let assertNotReembedding: AssertKnowledgeBaseNotReembeddingService;
   let eventBus: jest.Mocked<EventBus>;
   let handler: ChangeKnowledgeBaseEmbeddingModelCommandHandler;
   let knowledgeBase: KnowledgeBaseAggregate;
@@ -55,12 +61,20 @@ describe('ChangeKnowledgeBaseEmbeddingModelCommandHandler', () => {
       execute: jest.fn().mockResolvedValue(knowledgeBase),
     } as any;
     embeddingModelValidation = { isValid: jest.fn().mockResolvedValue(true) };
+    assertEmbeddingModelIsValid = new AssertEmbeddingModelIsValidService(
+      embeddingModelValidation,
+    );
+    isEmbeddingModelUnchanged =
+      new IsKnowledgeBaseEmbeddingModelUnchangedService();
+    assertNotReembedding = new AssertKnowledgeBaseNotReembeddingService();
     eventBus = { publish: jest.fn(), publishAll: jest.fn() } as any;
 
     handler = new ChangeKnowledgeBaseEmbeddingModelCommandHandler(
       writeRepository,
       assertExists,
-      embeddingModelValidation,
+      assertEmbeddingModelIsValid,
+      isEmbeddingModelUnchanged,
+      assertNotReembedding,
       eventBus,
     );
   });
@@ -92,7 +106,7 @@ describe('ChangeKnowledgeBaseEmbeddingModelCommandHandler', () => {
     expect(eventBus.publishAll).not.toHaveBeenCalled();
   });
 
-  it('rejects an unknown embedding model with InvalidEmbeddingModelException', async () => {
+  it('rejects an unknown embedding model with InvalidKnowledgeBaseEmbeddingModelException', async () => {
     embeddingModelValidation.isValid.mockResolvedValue(false);
     const command = new ChangeKnowledgeBaseEmbeddingModelCommand({
       id: knowledgeBase.id.value,
@@ -100,7 +114,7 @@ describe('ChangeKnowledgeBaseEmbeddingModelCommandHandler', () => {
     });
 
     await expect(handler.execute(command)).rejects.toBeInstanceOf(
-      InvalidEmbeddingModelException,
+      InvalidKnowledgeBaseEmbeddingModelException,
     );
     expect(writeRepository.save).not.toHaveBeenCalled();
   });
