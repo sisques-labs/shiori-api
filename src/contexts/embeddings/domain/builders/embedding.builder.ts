@@ -25,6 +25,7 @@ export class EmbeddingBuilder extends BaseBuilder<
   private _chunkText!: string;
   private _chunkPosition!: number;
   private _embedding!: number[];
+  private _dimensions!: number;
   private _model!: string;
 
   withKnowledgeBaseId(knowledgeBaseId: string): this {
@@ -57,6 +58,11 @@ export class EmbeddingBuilder extends BaseBuilder<
     return this;
   }
 
+  withDimensions(dimensions: number): this {
+    this._dimensions = dimensions;
+    return this;
+  }
+
   withModel(model: string): this {
     this._model = model;
     return this;
@@ -72,6 +78,7 @@ export class EmbeddingBuilder extends BaseBuilder<
       throw new FieldIsRequiredException('chunkText');
     if (this._embedding == null)
       throw new FieldIsRequiredException('embedding');
+    if (!this._dimensions) throw new FieldIsRequiredException('dimensions');
     if (!this._model) throw new FieldIsRequiredException('model');
   }
 
@@ -84,7 +91,10 @@ export class EmbeddingBuilder extends BaseBuilder<
       chunkId: new UuidValueObject(this._chunkId),
       chunkText: new EmbeddingChunkTextValueObject(this._chunkText),
       chunkPosition: new EmbeddingChunkPositionValueObject(this._chunkPosition),
-      embedding: new EmbeddingVectorValueObject(this._embedding),
+      embedding: new EmbeddingVectorValueObject(
+        this._embedding,
+        this._dimensions,
+      ),
       model: new EmbeddingModelValueObject(this._model),
       createdAt: new DateValueObject(this._createdAt),
       updatedAt: new DateValueObject(this._updatedAt),

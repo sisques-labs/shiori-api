@@ -20,5 +20,14 @@ export interface IEmbeddingSearchResult {
  * this repository consistent with the rest of the codebase.
  */
 export interface IEmbeddingReadRepository extends IBaseReadRepository<EmbeddingViewModel> {
-  search(vector: number[], topK: number): Promise<IEmbeddingSearchResult[]>;
+  /**
+   * `dimensions` determines which `embedding_vectors_{dimension}` table to
+   * JOIN against before the `ORDER BY ... <=> ...` even runs. An
+   * unregistered dimension throws `NoEmbeddingTableForDimensionException`.
+   */
+  search(
+    vector: number[],
+    topK: number,
+    dimensions: number,
+  ): Promise<IEmbeddingSearchResult[]>;
 }
