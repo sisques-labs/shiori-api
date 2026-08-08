@@ -59,6 +59,11 @@ export class EmbeddingSearchQueryHandler implements IQueryHandler<
       query.text,
       config.embeddingModel,
     );
-    return this.readRepository.search(vector, query.topK, dimensions);
+    return this.readRepository.search(
+      vector,
+      query.topK,
+      dimensions,
+      config.embeddingModel,
+    );
   }
 }

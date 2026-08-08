@@ -156,7 +156,12 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
         // insert order, determines the result ordering.
         await writeRepo.saveMany([far, near, mid], 1536);
 
-        const results = await readRepo.search(queryVector, 3, 1536);
+        const results = await readRepo.search(
+          queryVector,
+          3,
+          1536,
+          'test-model',
+        );
 
         expect(results).toHaveLength(3);
         expect(results.map((r) => r.chunkText)).toEqual(['near', 'mid', 'far']);
@@ -212,7 +217,12 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
           1536,
         );
 
-        const results = await readRepo.search(queryVector, 2, 1536);
+        const results = await readRepo.search(
+          queryVector,
+          2,
+          1536,
+          'test-model',
+        );
 
         expect(results).toHaveLength(2);
       });
@@ -273,7 +283,12 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
       );
 
       await knowledgeBaseContext.run(kbOneId, async () => {
-        const results = await readRepo.search(queryVector, 10, 1536);
+        const results = await readRepo.search(
+          queryVector,
+          10,
+          1536,
+          'test-model',
+        );
 
         expect(results).toHaveLength(1);
         expect(results[0].chunkText).toBe('kb one chunk');
@@ -339,14 +354,93 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
       );
 
       await knowledgeBaseContext.run(kbOneId, async () => {
-        const results = await readRepo.search(queryVector, 10, 1536);
+        const results = await readRepo.search(
+          queryVector,
+          10,
+          1536,
+          'text-embedding-3-small',
+        );
         expect(results).toHaveLength(1);
         expect(results[0].chunkText).toBe('kb one chunk');
       });
       await knowledgeBaseContext.run(kbTwoId, async () => {
-        const results = await readRepo.search(queryVector, 10, 1536);
+        const results = await readRepo.search(
+          queryVector,
+          10,
+          1536,
+          'text-embedding-ada-002',
+        );
         expect(results).toHaveLength(1);
         expect(results[0].chunkText).toBe('kb two chunk');
+      });
+    });
+
+    it('same knowledge base, two models sharing a dimension: search only sees the queried model’s rows', async () => {
+      const knowledgeBaseId = randomUUID();
+      const documentId = randomUUID();
+      const chunkIdOld = randomUUID();
+      const chunkIdNew = randomUUID();
+      const queryVector = buildVector(1536, { 0: 1 });
+      await seedDocument(knowledgeBaseId, documentId);
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkIdOld,
+        documentId,
+        knowledgeBaseId,
+        0,
+      );
+      await insertChunkFixture(
+        ctx.dataSource,
+        chunkIdNew,
+        documentId,
+        knowledgeBaseId,
+        1,
+      );
+
+      // Simulates rows left behind by a prior model — e.g. after a
+      // Knowledge Base's embeddingModel changed to a different model that
+      // happens to share the same dimension count. Both land in
+      // embedding_vectors_1536, so only the `model` filter (not dimension
+      // or knowledge_base_id alone) can tell them apart.
+      await knowledgeBaseContext.run(knowledgeBaseId, async () => {
+        await writeRepo.saveMany(
+          [
+            buildEmbedding(
+              knowledgeBaseId,
+              documentId,
+              chunkIdOld,
+              buildVector(1536, { 0: 1 }),
+              0,
+              'old model chunk',
+              'text-embedding-ada-002',
+            ),
+          ],
+          1536,
+        );
+        await writeRepo.saveMany(
+          [
+            buildEmbedding(
+              knowledgeBaseId,
+              documentId,
+              chunkIdNew,
+              buildVector(1536, { 0: 1 }),
+              1,
+              'new model chunk',
+              'text-embedding-3-small',
+            ),
+          ],
+          1536,
+        );
+
+        const results = await readRepo.search(
+          queryVector,
+          10,
+          1536,
+          'text-embedding-3-small',
+        );
+
+        expect(results).toHaveLength(1);
+        expect(results[0].chunkText).toBe('new model chunk');
       });
     });
 
@@ -405,6 +499,7 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
           buildVector(1536, { 0: 1 }),
           10,
           1536,
+          'text-embedding-3-small',
         );
         expect(results1536).toHaveLength(1);
         expect(results1536[0].chunkText).toBe('1536-dim chunk');
@@ -413,6 +508,7 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
           buildVector(768, { 0: 1 }),
           10,
           768,
+          'nomic-embed-text',
         );
         expect(results768).toHaveLength(1);
         expect(results768[0].chunkText).toBe('768-dim chunk');
@@ -422,7 +518,7 @@ describe('EmbeddingTypeOrmReadRepository (integration)', () => {
     it('throws NoEmbeddingTableForDimensionException for an unregistered dimension', async () => {
       await knowledgeBaseContext.run(randomUUID(), async () => {
         await expect(
-          readRepo.search(buildVector(999, { 0: 1 }), 10, 999),
+          readRepo.search(buildVector(999, { 0: 1 }), 10, 999, 'test-model'),
         ).rejects.toBeInstanceOf(NoEmbeddingTableForDimensionException);
       });
     });

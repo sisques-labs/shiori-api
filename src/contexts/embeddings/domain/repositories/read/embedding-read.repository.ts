@@ -24,10 +24,19 @@ export interface IEmbeddingReadRepository extends IBaseReadRepository<EmbeddingV
    * `dimensions` determines which `embedding_vectors_{dimension}` table to
    * JOIN against before the `ORDER BY ... <=> ...` even runs. An
    * unregistered dimension throws `NoEmbeddingTableForDimensionException`.
+   *
+   * `model` is required, not just `dimensions`: several models can share a
+   * dimension count (that's the whole point of not needing a migration to
+   * add one), so more than one model's rows can live in the same
+   * `embedding_vectors_{dimension}` table for the same Knowledge Base —
+   * e.g. right after a `ChangeKnowledgeBaseEmbeddingModel` re-embed. Cosine
+   * distance between vectors from two different models is meaningless, so
+   * this must scope to the querying model as well as the dimension table.
    */
   search(
     vector: number[],
     topK: number,
     dimensions: number,
+    model: string,
   ): Promise<IEmbeddingSearchResult[]>;
 }

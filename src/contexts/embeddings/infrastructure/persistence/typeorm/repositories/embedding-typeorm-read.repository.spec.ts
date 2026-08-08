@@ -19,6 +19,7 @@ describe('EmbeddingTypeOrmReadRepository', () => {
     select: jest.Mock;
     addSelect: jest.Mock;
     where: jest.Mock;
+    andWhere: jest.Mock;
     orderBy: jest.Mock;
     setParameter: jest.Mock;
     limit: jest.Mock;
@@ -36,6 +37,7 @@ describe('EmbeddingTypeOrmReadRepository', () => {
       select: jest.fn().mockReturnThis(),
       addSelect: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
       setParameter: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
@@ -73,7 +75,12 @@ describe('EmbeddingTypeOrmReadRepository', () => {
         },
       ]);
 
-      const results = await repository.search([0.1, 0.2], 5, 1536);
+      const results = await repository.search(
+        [0.1, 0.2],
+        5,
+        1536,
+        'text-embedding-3-small',
+      );
 
       expect(dataSource.getRepository).toHaveBeenCalled();
       expect(queryBuilder.innerJoin).toHaveBeenCalledWith(
@@ -84,6 +91,10 @@ describe('EmbeddingTypeOrmReadRepository', () => {
       expect(queryBuilder.where).toHaveBeenCalledWith(
         expect.stringContaining('knowledge_base_id'),
         { knowledgeBaseId: 'kb-1' },
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('model'),
+        { model: 'text-embedding-3-small' },
       );
       expect(queryBuilder.limit).toHaveBeenCalledWith(5);
       expect(results).toEqual([
@@ -98,9 +109,9 @@ describe('EmbeddingTypeOrmReadRepository', () => {
     });
 
     it('throws NoEmbeddingTableForDimensionException for an unregistered dimension', async () => {
-      await expect(repository.search([0.1], 5, 999)).rejects.toBeInstanceOf(
-        NoEmbeddingTableForDimensionException,
-      );
+      await expect(
+        repository.search([0.1], 5, 999, 'text-embedding-3-small'),
+      ).rejects.toBeInstanceOf(NoEmbeddingTableForDimensionException);
       expect(rawRepository.createQueryBuilder).not.toHaveBeenCalled();
     });
   });
