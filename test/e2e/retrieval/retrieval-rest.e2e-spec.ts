@@ -78,6 +78,7 @@ describe('Retrieval REST (e2e)', () => {
     vector: number[],
     position: number,
     text: string,
+    model = 'text-embedding-3-small',
   ) {
     return new EmbeddingBuilder()
       .withId(randomUUID())
@@ -88,7 +89,7 @@ describe('Retrieval REST (e2e)', () => {
       .withChunkPosition(position)
       .withEmbedding(vector)
       .withDimensions(DIMENSIONS)
-      .withModel('text-embedding-3-small')
+      .withModel(model)
       .withCreatedAt(new Date())
       .withUpdatedAt(new Date())
       .build();
@@ -226,6 +227,68 @@ describe('Retrieval REST (e2e)', () => {
       .send({ query: 'anything' });
 
     expect(res.status).toBe(401);
+  });
+
+  it('POST /api/v1/retrieval/search ignores rows left behind by a different model sharing the same dimension', async () => {
+    const kb = await createKnowledgeBase('Model Isolation KB');
+    const documentId = randomUUID();
+    const chunkIdCurrentModel = randomUUID();
+    const chunkIdStaleModel = randomUUID();
+    await insertDocumentFixture(ctx.dataSource, documentId, kb.id);
+    await insertChunkFixture(
+      ctx.dataSource,
+      chunkIdCurrentModel,
+      documentId,
+      kb.id,
+      0,
+    );
+    await insertChunkFixture(
+      ctx.dataSource,
+      chunkIdStaleModel,
+      documentId,
+      kb.id,
+      1,
+    );
+
+    // text-embedding-ada-002 shares text-embedding-3-small's 1536
+    // dimensions, so both land in the same embedding_vectors_1536 table —
+    // simulates rows a prior embeddingModel left behind. Only the `model`
+    // filter (not dimension or knowledge_base_id alone) can tell them apart.
+    await knowledgeBaseContext.run(kb.id, () =>
+      embeddingWriteRepo.saveMany(
+        [
+          buildEmbedding(
+            kb.id,
+            documentId,
+            chunkIdCurrentModel,
+            buildVector({ 0: 1 }),
+            0,
+            'current model chunk',
+            'text-embedding-3-small',
+          ),
+          buildEmbedding(
+            kb.id,
+            documentId,
+            chunkIdStaleModel,
+            buildVector({ 0: 1 }),
+            1,
+            'stale model chunk',
+            'text-embedding-ada-002',
+          ),
+        ],
+        DIMENSIONS,
+      ),
+    );
+
+    const res = await ctx
+      .http()
+      .post('/api/v1/retrieval/search')
+      .set('X-API-Key', kb.apiKey)
+      .send({ query: 'anything' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].chunkText).toBe('current model chunk');
   });
 
   it('POST /api/v1/retrieval/search returns 409 while the knowledge base is REEMBEDDING', async () => {
