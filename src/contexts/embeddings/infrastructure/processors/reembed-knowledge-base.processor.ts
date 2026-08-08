@@ -1,5 +1,4 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { UuidValueObject } from '@sisques-labs/nestjs-kit';
 import { Job } from 'bullmq';
 
 import {
@@ -7,14 +6,10 @@ import {
   IChunkSourcePort,
 } from '@contexts/embeddings/application/ports/chunk-source.port';
 import {
-  EMBEDDING_PORT,
-  IEmbeddingPort,
-} from '@contexts/embeddings/application/ports/embedding.port';
-import {
   KNOWLEDGE_BASE_REEMBEDDING_STATUS_PORT,
   IKnowledgeBaseReembeddingStatusPort,
 } from '@contexts/embeddings/application/ports/knowledge-base-reembedding-status.port';
-import { EmbeddingBuilder } from '@contexts/embeddings/domain/builders/embedding.builder';
+import { EmbedDocumentChunksService } from '@contexts/embeddings/application/services/write/embed-document-chunks/embed-document-chunks.service';
 import {
   EMBEDDING_WRITE_REPOSITORY,
   IEmbeddingWriteRepository,
@@ -34,6 +29,14 @@ import { KnowledgeBaseContext } from '@core/tenancy/knowledge-base-context.servi
  * single Worker with explicit job-name dispatch avoids that race entirely
  * while still living in "the same existing `embeddings` queue, a new job
  * type" per design.md.
+ *
+ * Per-document embedding itself is not duplicated here — it delegates to
+ * `EmbedDocumentChunksService`, the same shared step
+ * `EmbedDocumentChunksProcessor` uses for a single document. This
+ * processor's own responsibility is the orchestration around it that's
+ * unique to a model change: enumerate every document in the Knowledge
+ * Base, embed each one under the new model, then clean up the previous
+ * model's rows and report status back to `knowledge-bases`.
  */
 @Injectable()
 export class ReembedKnowledgeBaseProcessor {
@@ -42,14 +45,12 @@ export class ReembedKnowledgeBaseProcessor {
   constructor(
     @Inject(CHUNK_SOURCE_PORT)
     private readonly chunkSource: IChunkSourcePort,
-    @Inject(EMBEDDING_PORT)
-    private readonly embeddingPort: IEmbeddingPort,
     @Inject(EMBEDDING_WRITE_REPOSITORY)
     private readonly embeddingWriteRepository: IEmbeddingWriteRepository,
     @Inject(KNOWLEDGE_BASE_REEMBEDDING_STATUS_PORT)
     private readonly reembeddingStatus: IKnowledgeBaseReembeddingStatusPort,
     private readonly modelRegistry: EmbeddingModelRegistryService,
-    private readonly embeddingBuilder: EmbeddingBuilder,
+    private readonly embedDocumentChunks: EmbedDocumentChunksService,
     private readonly knowledgeBaseContext: KnowledgeBaseContext,
   ) {}
 
@@ -73,33 +74,10 @@ export class ReembedKnowledgeBaseProcessor {
           await this.chunkSource.findKnowledgeBaseDocumentIds(knowledgeBaseId);
 
         for (const documentId of documentIds) {
-          const chunks = await this.chunkSource.findByDocumentId(documentId);
-          if (chunks.length === 0) continue;
-
-          const vectors = await this.embeddingPort.embedBatch(
-            chunks.map((chunk) => chunk.text),
+          await this.embedDocumentChunks.execute(
+            documentId,
+            knowledgeBaseId,
             newModel,
-          );
-
-          const now = new Date();
-          const embeddings = chunks.map((chunk, i) =>
-            this.embeddingBuilder
-              .withId(UuidValueObject.generate().value)
-              .withKnowledgeBaseId(knowledgeBaseId)
-              .withDocumentId(documentId)
-              .withChunkId(chunk.id)
-              .withChunkText(chunk.text)
-              .withChunkPosition(chunk.position)
-              .withEmbedding(vectors[i])
-              .withDimensions(newDimensions)
-              .withModel(newModel)
-              .withCreatedAt(now)
-              .withUpdatedAt(now)
-              .build(),
-          );
-
-          await this.embeddingWriteRepository.saveMany(
-            embeddings,
             newDimensions,
           );
         }

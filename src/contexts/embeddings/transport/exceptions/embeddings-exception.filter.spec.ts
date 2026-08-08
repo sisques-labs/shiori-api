@@ -4,7 +4,7 @@ import {
   InvalidVectorException,
 } from '@sisques-labs/nestjs-kit';
 
-import { KnowledgeBaseNotReadyForSearchException } from '@contexts/embeddings/domain/exceptions/knowledge-base-not-ready-for-search.exception';
+import { EmbeddingSearchNotReadyException } from '@contexts/embeddings/domain/exceptions/embedding-search-not-ready.exception';
 import { NoEmbeddingTableForDimensionException } from '@contexts/embeddings/domain/exceptions/no-embedding-table-for-dimension.exception';
 import { UnknownEmbeddingModelException } from '@contexts/embeddings/domain/exceptions/unknown-embedding-model.exception';
 
@@ -23,10 +23,10 @@ describe('resolveEmbeddingsExceptionStatus', () => {
     ).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
   });
 
-  it('maps KnowledgeBaseNotReadyForSearchException to 409', () => {
+  it('maps EmbeddingSearchNotReadyException to 409', () => {
     expect(
       resolveEmbeddingsExceptionStatus(
-        new KnowledgeBaseNotReadyForSearchException('kb-1', 'REEMBEDDING'),
+        new EmbeddingSearchNotReadyException('kb-1', 'REEMBEDDING'),
       ),
     ).toBe(HttpStatus.CONFLICT);
   });

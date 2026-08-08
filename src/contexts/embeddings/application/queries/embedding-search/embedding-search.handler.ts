@@ -9,7 +9,7 @@ import {
   KNOWLEDGE_BASE_EMBEDDING_CONFIG_PORT,
   IKnowledgeBaseEmbeddingConfigPort,
 } from '@contexts/embeddings/application/ports/knowledge-base-embedding-config.port';
-import { KnowledgeBaseNotReadyForSearchException } from '@contexts/embeddings/domain/exceptions/knowledge-base-not-ready-for-search.exception';
+import { AssertEmbeddingSearchReadyService } from '@contexts/embeddings/application/services/read/assert-embedding-search-ready/assert-embedding-search-ready.service';
 import {
   EMBEDDING_READ_REPOSITORY,
   IEmbeddingReadRepository,
@@ -34,6 +34,7 @@ export class EmbeddingSearchQueryHandler implements IQueryHandler<
     private readonly readRepository: IEmbeddingReadRepository,
     @Inject(KNOWLEDGE_BASE_EMBEDDING_CONFIG_PORT)
     private readonly knowledgeBaseEmbeddingConfig: IKnowledgeBaseEmbeddingConfigPort,
+    private readonly assertSearchReady: AssertEmbeddingSearchReadyService,
     private readonly modelRegistry: EmbeddingModelRegistryService,
     private readonly knowledgeBaseContext: KnowledgeBaseContext,
   ) {}
@@ -50,12 +51,7 @@ export class EmbeddingSearchQueryHandler implements IQueryHandler<
         knowledgeBaseId,
       );
 
-    if (config.embeddingStatus !== 'READY') {
-      throw new KnowledgeBaseNotReadyForSearchException(
-        knowledgeBaseId,
-        config.embeddingStatus,
-      );
-    }
+    this.assertSearchReady.execute(knowledgeBaseId, config.embeddingStatus);
 
     const { dimensions } = this.modelRegistry.getOrThrow(config.embeddingModel);
 

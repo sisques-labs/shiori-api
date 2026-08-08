@@ -2,10 +2,8 @@ import { UuidValueObject } from '@sisques-labs/nestjs-kit';
 import { Job } from 'bullmq';
 
 import { IChunkSourcePort } from '@contexts/embeddings/application/ports/chunk-source.port';
-import { IEmbeddingPort } from '@contexts/embeddings/application/ports/embedding.port';
 import { IKnowledgeBaseReembeddingStatusPort } from '@contexts/embeddings/application/ports/knowledge-base-reembedding-status.port';
-import { EmbeddingAggregate } from '@contexts/embeddings/domain/aggregates/embedding.aggregate';
-import { EmbeddingBuilder } from '@contexts/embeddings/domain/builders/embedding.builder';
+import { EmbedDocumentChunksService } from '@contexts/embeddings/application/services/write/embed-document-chunks/embed-document-chunks.service';
 import { IEmbeddingWriteRepository } from '@contexts/embeddings/domain/repositories/write/embedding-write.repository';
 import { EmbeddingModelRegistryService } from '@contexts/embeddings/domain/services/embedding-model-registry.service';
 import { ReembedKnowledgeBaseJobData } from '@contexts/embeddings/infrastructure/services/bullmq-embedding-reembed-queue.service';
@@ -17,10 +15,6 @@ function buildProcessor() {
   const chunkSource: jest.Mocked<IChunkSourcePort> = {
     findByDocumentId: jest.fn(),
     findKnowledgeBaseDocumentIds: jest.fn(),
-  };
-  const embeddingPort: jest.Mocked<IEmbeddingPort> = {
-    embed: jest.fn(),
-    embedBatch: jest.fn(),
   };
   const embeddingWriteRepository: jest.Mocked<IEmbeddingWriteRepository> = {
     saveMany: jest.fn().mockResolvedValue(undefined),
@@ -36,26 +30,28 @@ function buildProcessor() {
     complete: jest.fn().mockResolvedValue(undefined),
     fail: jest.fn().mockResolvedValue(undefined),
   };
+  const embedDocumentChunks = {
+    execute: jest.fn().mockResolvedValue(1),
+  } as unknown as jest.Mocked<EmbedDocumentChunksService>;
   const knowledgeBaseContext = {
     run: jest.fn((_id: string, fn: () => unknown) => fn()),
   } as unknown as jest.Mocked<KnowledgeBaseContext>;
 
   const processor = new ReembedKnowledgeBaseProcessor(
     chunkSource,
-    embeddingPort,
     embeddingWriteRepository,
     reembeddingStatus,
     new EmbeddingModelRegistryService(),
-    new EmbeddingBuilder(),
+    embedDocumentChunks,
     knowledgeBaseContext,
   );
 
   return {
     processor,
     chunkSource,
-    embeddingPort,
     embeddingWriteRepository,
     reembeddingStatus,
+    embedDocumentChunks,
     knowledgeBaseContext,
   };
 }
@@ -71,13 +67,13 @@ describe('ReembedKnowledgeBaseProcessor', () => {
   const previousModel = 'text-embedding-3-small';
   const newModel = 'nomic-embed-text';
 
-  it('happy path: clears target model first, re-embeds every document under the new model, then clears the previous model, then dispatches Complete', async () => {
+  it('happy path: clears target model first, delegates each document to EmbedDocumentChunksService under the new model, then clears the previous model, then dispatches Complete', async () => {
     const {
       processor,
       chunkSource,
-      embeddingPort,
       embeddingWriteRepository,
       reembeddingStatus,
+      embedDocumentChunks,
       knowledgeBaseContext,
     } = buildProcessor();
 
@@ -85,10 +81,6 @@ describe('ReembedKnowledgeBaseProcessor', () => {
       documentId1,
       documentId2,
     ]);
-    chunkSource.findByDocumentId.mockImplementation(async () => [
-      { id: UuidValueObject.generate().value, text: 'first', position: 0 },
-    ]);
-    embeddingPort.embedBatch.mockResolvedValue([new Array(768).fill(0.1)]);
 
     await processor.process(
       buildJob({ knowledgeBaseId, previousModel, newModel }),
@@ -105,14 +97,19 @@ describe('ReembedKnowledgeBaseProcessor', () => {
       embeddingWriteRepository.deleteByKnowledgeBaseIdAndModel.mock.calls;
     expect(deleteCalls[0]).toEqual([knowledgeBaseId, newModel]);
 
-    expect(embeddingPort.embedBatch).toHaveBeenCalledTimes(2);
-    expect(embeddingPort.embedBatch).toHaveBeenCalledWith(['first'], newModel);
-
-    expect(embeddingWriteRepository.saveMany).toHaveBeenCalledTimes(2);
-    const [savedEmbeddings, dimensions] = embeddingWriteRepository.saveMany.mock
-      .calls[0] as [EmbeddingAggregate[], number];
-    expect(dimensions).toBe(768);
-    expect(savedEmbeddings[0].model.value).toBe(newModel);
+    expect(embedDocumentChunks.execute).toHaveBeenCalledTimes(2);
+    expect(embedDocumentChunks.execute).toHaveBeenCalledWith(
+      documentId1,
+      knowledgeBaseId,
+      newModel,
+      768,
+    );
+    expect(embedDocumentChunks.execute).toHaveBeenCalledWith(
+      documentId2,
+      knowledgeBaseId,
+      newModel,
+      768,
+    );
 
     // Only removed after every document succeeded.
     expect(deleteCalls[1]).toEqual([knowledgeBaseId, previousModel]);
@@ -126,19 +123,18 @@ describe('ReembedKnowledgeBaseProcessor', () => {
     const {
       processor,
       chunkSource,
-      embeddingPort,
       embeddingWriteRepository,
       reembeddingStatus,
+      embedDocumentChunks,
     } = buildProcessor();
 
     chunkSource.findKnowledgeBaseDocumentIds.mockResolvedValue([
       documentId1,
       documentId2,
     ]);
-    chunkSource.findByDocumentId.mockResolvedValue([
-      { id: UuidValueObject.generate().value, text: 'first', position: 0 },
-    ]);
-    embeddingPort.embedBatch.mockRejectedValue(new Error('provider timeout'));
+    embedDocumentChunks.execute.mockRejectedValue(
+      new Error('provider timeout'),
+    );
 
     await expect(
       processor.process(buildJob({ knowledgeBaseId, previousModel, newModel })),
@@ -160,18 +156,23 @@ describe('ReembedKnowledgeBaseProcessor', () => {
     ).toHaveBeenCalledWith(knowledgeBaseId, newModel);
   });
 
-  it('skips documents with no chunks without failing the job', async () => {
-    const { processor, chunkSource, embeddingPort, embeddingWriteRepository } =
+  it('tolerates a document with no chunks (EmbedDocumentChunksService is a no-op) without failing the job', async () => {
+    const { processor, chunkSource, embedDocumentChunks, reembeddingStatus } =
       buildProcessor();
 
     chunkSource.findKnowledgeBaseDocumentIds.mockResolvedValue([documentId1]);
-    chunkSource.findByDocumentId.mockResolvedValue([]);
+    embedDocumentChunks.execute.mockResolvedValue(0);
 
     await processor.process(
       buildJob({ knowledgeBaseId, previousModel, newModel }),
     );
 
-    expect(embeddingPort.embedBatch).not.toHaveBeenCalled();
-    expect(embeddingWriteRepository.saveMany).not.toHaveBeenCalled();
+    expect(embedDocumentChunks.execute).toHaveBeenCalledWith(
+      documentId1,
+      knowledgeBaseId,
+      newModel,
+      768,
+    );
+    expect(reembeddingStatus.complete).toHaveBeenCalledWith(knowledgeBaseId);
   });
 });

@@ -1,6 +1,7 @@
 import { IEmbeddingPort } from '@contexts/embeddings/application/ports/embedding.port';
 import { IKnowledgeBaseEmbeddingConfigPort } from '@contexts/embeddings/application/ports/knowledge-base-embedding-config.port';
-import { KnowledgeBaseNotReadyForSearchException } from '@contexts/embeddings/domain/exceptions/knowledge-base-not-ready-for-search.exception';
+import { AssertEmbeddingSearchReadyService } from '@contexts/embeddings/application/services/read/assert-embedding-search-ready/assert-embedding-search-ready.service';
+import { EmbeddingSearchNotReadyException } from '@contexts/embeddings/domain/exceptions/embedding-search-not-ready.exception';
 import {
   IEmbeddingReadRepository,
   IEmbeddingSearchResult,
@@ -35,6 +36,7 @@ function buildHandler(knowledgeBaseId = 'kb-1') {
     embeddingPort,
     readRepository,
     knowledgeBaseEmbeddingConfig,
+    new AssertEmbeddingSearchReadyService(),
     new EmbeddingModelRegistryService(),
     knowledgeBaseContext,
   );
@@ -87,7 +89,7 @@ describe('EmbeddingSearchQueryHandler', () => {
     expect(result).toEqual([RESULT]);
   });
 
-  it('throws KnowledgeBaseNotReadyForSearchException when status !== READY', async () => {
+  it('throws EmbeddingSearchNotReadyException when status !== READY', async () => {
     const {
       handler,
       embeddingPort,
@@ -101,7 +103,7 @@ describe('EmbeddingSearchQueryHandler', () => {
 
     await expect(
       handler.execute(new EmbeddingSearchQuery({ text: 'hello', topK: 5 })),
-    ).rejects.toBeInstanceOf(KnowledgeBaseNotReadyForSearchException);
+    ).rejects.toBeInstanceOf(EmbeddingSearchNotReadyException);
 
     expect(embeddingPort.embed).not.toHaveBeenCalled();
     expect(readRepository.search).not.toHaveBeenCalled();

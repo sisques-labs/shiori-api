@@ -1,25 +1,12 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger } from '@nestjs/common';
-import { UuidValueObject } from '@sisques-labs/nestjs-kit';
 import { Job } from 'bullmq';
 
-import {
-  CHUNK_SOURCE_PORT,
-  IChunkSourcePort,
-} from '@contexts/embeddings/application/ports/chunk-source.port';
-import {
-  EMBEDDING_PORT,
-  IEmbeddingPort,
-} from '@contexts/embeddings/application/ports/embedding.port';
 import {
   KNOWLEDGE_BASE_EMBEDDING_CONFIG_PORT,
   IKnowledgeBaseEmbeddingConfigPort,
 } from '@contexts/embeddings/application/ports/knowledge-base-embedding-config.port';
-import { EmbeddingBuilder } from '@contexts/embeddings/domain/builders/embedding.builder';
-import {
-  EMBEDDING_WRITE_REPOSITORY,
-  IEmbeddingWriteRepository,
-} from '@contexts/embeddings/domain/repositories/write/embedding-write.repository';
+import { EmbedDocumentChunksService } from '@contexts/embeddings/application/services/write/embed-document-chunks/embed-document-chunks.service';
 import { EmbeddingModelRegistryService } from '@contexts/embeddings/domain/services/embedding-model-registry.service';
 import { ReembedKnowledgeBaseProcessor } from '@contexts/embeddings/infrastructure/processors/reembed-knowledge-base.processor';
 import { REEMBED_KNOWLEDGE_BASE_JOB_NAME } from '@contexts/embeddings/infrastructure/services/bullmq-embedding-reembed-queue.service';
@@ -40,22 +27,21 @@ export interface EmbedDocumentChunksJobData {
  * filtering across multiple Workers sharing one queue), which could hand a
  * re-embed job's payload to code that only knows how to read an
  * `EmbedDocumentChunksJobData` shape, or vice versa.
+ *
+ * The actual "fetch a document's chunks, embed them, save them" work is
+ * shared with `ReembedKnowledgeBaseProcessor` via `EmbedDocumentChunksService`
+ * — this processor's own job is only to resolve *which* document and
+ * *which* model to embed it under before delegating.
  */
 @Processor('embeddings')
 export class EmbedDocumentChunksProcessor extends WorkerHost {
   private readonly logger = new Logger(EmbedDocumentChunksProcessor.name);
 
   constructor(
-    @Inject(CHUNK_SOURCE_PORT)
-    private readonly chunkSource: IChunkSourcePort,
-    @Inject(EMBEDDING_PORT)
-    private readonly embeddingPort: IEmbeddingPort,
-    @Inject(EMBEDDING_WRITE_REPOSITORY)
-    private readonly embeddingWriteRepository: IEmbeddingWriteRepository,
     @Inject(KNOWLEDGE_BASE_EMBEDDING_CONFIG_PORT)
     private readonly knowledgeBaseEmbeddingConfig: IKnowledgeBaseEmbeddingConfigPort,
     private readonly modelRegistry: EmbeddingModelRegistryService,
-    private readonly embeddingBuilder: EmbeddingBuilder,
+    private readonly embedDocumentChunks: EmbedDocumentChunksService,
     private readonly knowledgeBaseContext: KnowledgeBaseContext,
     private readonly reembedProcessor: ReembedKnowledgeBaseProcessor,
   ) {
@@ -81,12 +67,6 @@ export class EmbedDocumentChunksProcessor extends WorkerHost {
     // No HTTP request drives this path, so KnowledgeBaseContextInterceptor
     // never runs — the tenant frame has to be opened here explicitly.
     await this.knowledgeBaseContext.run(knowledgeBaseId, async () => {
-      const chunks = await this.chunkSource.findByDocumentId(documentId);
-      if (chunks.length === 0) {
-        this.logger.warn(`No chunks found for document: ${documentId}`);
-        return;
-      }
-
       // This step runs regardless of the Knowledge Base's embeddingStatus —
       // a document's own chunk→embed flow is independent of another,
       // possibly-concurrent, model-change re-embed for the same tenant.
@@ -98,32 +78,20 @@ export class EmbedDocumentChunksProcessor extends WorkerHost {
         config.embeddingModel,
       );
 
-      const vectors = await this.embeddingPort.embedBatch(
-        chunks.map((chunk) => chunk.text),
+      const embeddedCount = await this.embedDocumentChunks.execute(
+        documentId,
+        knowledgeBaseId,
         config.embeddingModel,
+        dimensions,
       );
 
-      const now = new Date();
-      const embeddings = chunks.map((chunk, i) =>
-        this.embeddingBuilder
-          .withId(UuidValueObject.generate().value)
-          .withKnowledgeBaseId(knowledgeBaseId)
-          .withDocumentId(documentId)
-          .withChunkId(chunk.id)
-          .withChunkText(chunk.text)
-          .withChunkPosition(chunk.position)
-          .withEmbedding(vectors[i])
-          .withDimensions(dimensions)
-          .withModel(config.embeddingModel)
-          .withCreatedAt(now)
-          .withUpdatedAt(now)
-          .build(),
-      );
-
-      await this.embeddingWriteRepository.saveMany(embeddings, dimensions);
+      if (embeddedCount === 0) {
+        this.logger.warn(`No chunks found for document: ${documentId}`);
+        return;
+      }
 
       this.logger.log(
-        `Embedded document: ${documentId} (${embeddings.length} chunks)`,
+        `Embedded document: ${documentId} (${embeddedCount} chunks)`,
       );
     });
   }
