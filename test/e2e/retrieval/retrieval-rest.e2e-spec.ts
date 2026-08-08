@@ -60,7 +60,7 @@ describe('Retrieval REST (e2e)', () => {
   });
 
   async function createKnowledgeBase(name = 'Search KB') {
-    const res = await ctx.http().post('/api/knowledge-bases').send({ name });
+    const res = await ctx.http().post('/api/v1/knowledge-bases').send({ name });
     return res.body as { id: string; apiKey: string; name: string };
   }
 
@@ -86,7 +86,7 @@ describe('Retrieval REST (e2e)', () => {
       .build();
   }
 
-  it('POST /api/retrieval/search returns results ranked nearest-first, scoped to the caller’s knowledge base', async () => {
+  it('POST /api/v1/retrieval/search returns results ranked nearest-first, scoped to the caller’s knowledge base', async () => {
     const kb = await createKnowledgeBase();
     const documentId = randomUUID();
     const chunkIdFar = randomUUID();
@@ -128,7 +128,7 @@ describe('Retrieval REST (e2e)', () => {
 
     const res = await ctx
       .http()
-      .post('/api/retrieval/search')
+      .post('/api/v1/retrieval/search')
       .set('X-API-Key', kb.apiKey)
       .send({ query: 'anything', topK: 3 });
 
@@ -144,7 +144,7 @@ describe('Retrieval REST (e2e)', () => {
     expect(res.body[0].documentId).toBe(documentId);
   });
 
-  it('POST /api/retrieval/search does not leak results from another knowledge base', async () => {
+  it('POST /api/v1/retrieval/search does not leak results from another knowledge base', async () => {
     const kbOne = await createKnowledgeBase('KB One');
     const kbTwo = await createKnowledgeBase('KB Two');
     const documentIdOne = randomUUID();
@@ -193,7 +193,7 @@ describe('Retrieval REST (e2e)', () => {
 
     const res = await ctx
       .http()
-      .post('/api/retrieval/search')
+      .post('/api/v1/retrieval/search')
       .set('X-API-Key', kbOne.apiKey)
       .send({ query: 'anything' });
 
@@ -202,10 +202,10 @@ describe('Retrieval REST (e2e)', () => {
     expect(res.body[0].chunkText).toBe('kb one chunk');
   });
 
-  it('POST /api/retrieval/search without an API key returns 401', async () => {
+  it('POST /api/v1/retrieval/search without an API key returns 401', async () => {
     const res = await ctx
       .http()
-      .post('/api/retrieval/search')
+      .post('/api/v1/retrieval/search')
       .send({ query: 'anything' });
 
     expect(res.status).toBe(401);
