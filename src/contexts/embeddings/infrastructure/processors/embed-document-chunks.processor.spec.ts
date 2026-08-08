@@ -48,7 +48,11 @@ function buildProcessor() {
 }
 
 function buildJob(data: EmbedDocumentChunksJobData): Job {
-  return { name: 'embed-document-chunks', data } as Job;
+  return {
+    name: 'embed-document-chunks',
+    data,
+    updateProgress: jest.fn(),
+  } as unknown as Job;
 }
 
 describe('EmbedDocumentChunksProcessor', () => {
@@ -59,7 +63,8 @@ describe('EmbedDocumentChunksProcessor', () => {
     const { processor, embedDocumentChunks, knowledgeBaseContext } =
       buildProcessor();
 
-    await processor.process(buildJob({ documentId, knowledgeBaseId }));
+    const job = buildJob({ documentId, knowledgeBaseId });
+    await processor.process(job);
 
     expect(knowledgeBaseContext.run).toHaveBeenCalledWith(
       knowledgeBaseId,
@@ -71,6 +76,17 @@ describe('EmbedDocumentChunksProcessor', () => {
       'text-embedding-3-small',
       1536,
     );
+
+    // Same { processedDocuments, totalDocuments } shape
+    // ReembedKnowledgeBaseProcessor reports, with totalDocuments always 1.
+    expect(job.updateProgress).toHaveBeenCalledWith({
+      processedDocuments: 0,
+      totalDocuments: 1,
+    });
+    expect(job.updateProgress).toHaveBeenCalledWith({
+      processedDocuments: 1,
+      totalDocuments: 1,
+    });
   });
 
   it('logs a warning and does not throw when the document has no chunks', async () => {

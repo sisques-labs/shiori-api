@@ -57,7 +57,11 @@ function buildProcessor() {
 }
 
 function buildJob(data: ReembedKnowledgeBaseJobData): Job {
-  return { name: 'reembed-knowledge-base', data } as Job;
+  return {
+    name: 'reembed-knowledge-base',
+    data,
+    updateProgress: jest.fn(),
+  } as unknown as Job;
 }
 
 describe('ReembedKnowledgeBaseProcessor', () => {
@@ -82,14 +86,28 @@ describe('ReembedKnowledgeBaseProcessor', () => {
       documentId2,
     ]);
 
-    await processor.process(
-      buildJob({ knowledgeBaseId, previousModel, newModel }),
-    );
+    const job = buildJob({ knowledgeBaseId, previousModel, newModel });
+    await processor.process(job);
 
     expect(knowledgeBaseContext.run).toHaveBeenCalledWith(
       knowledgeBaseId,
       expect.any(Function),
     );
+
+    // Progress reported before the loop starts and after every document —
+    // a caller polling job.progress can show "processed X of Y".
+    expect(job.updateProgress).toHaveBeenCalledWith({
+      processedDocuments: 0,
+      totalDocuments: 2,
+    });
+    expect(job.updateProgress).toHaveBeenCalledWith({
+      processedDocuments: 1,
+      totalDocuments: 2,
+    });
+    expect(job.updateProgress).toHaveBeenCalledWith({
+      processedDocuments: 2,
+      totalDocuments: 2,
+    });
 
     // Clears the target model's rows FIRST (retry safety), before any
     // document is re-embedded.

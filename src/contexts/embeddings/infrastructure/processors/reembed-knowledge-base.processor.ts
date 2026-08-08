@@ -73,13 +73,26 @@ export class ReembedKnowledgeBaseProcessor {
         const documentIds =
           await this.chunkSource.findKnowledgeBaseDocumentIds(knowledgeBaseId);
 
-        for (const documentId of documentIds) {
+        // Reported after every document (not just at the end) so a caller
+        // polling `job.progress` can show "processed X of Y documents"
+        // while a re-embed of a large Knowledge Base is still running.
+        await job.updateProgress({
+          processedDocuments: 0,
+          totalDocuments: documentIds.length,
+        });
+
+        for (const [index, documentId] of documentIds.entries()) {
           await this.embedDocumentChunks.execute(
             documentId,
             knowledgeBaseId,
             newModel,
             newDimensions,
           );
+
+          await job.updateProgress({
+            processedDocuments: index + 1,
+            totalDocuments: documentIds.length,
+          });
         }
 
         // Only removed after every document has succeeded — avoids a

@@ -78,12 +78,20 @@ export class EmbedDocumentChunksProcessor extends WorkerHost {
         config.embeddingModel,
       );
 
+      // Same { processedDocuments, totalDocuments } shape
+      // ReembedKnowledgeBaseProcessor reports, with totalDocuments always 1
+      // here — a caller polling `job.progress` doesn't need to care which
+      // job type it's looking at.
+      await job.updateProgress({ processedDocuments: 0, totalDocuments: 1 });
+
       const embeddedCount = await this.embedDocumentChunks.execute(
         documentId,
         knowledgeBaseId,
         config.embeddingModel,
         dimensions,
       );
+
+      await job.updateProgress({ processedDocuments: 1, totalDocuments: 1 });
 
       if (embeddedCount === 0) {
         this.logger.warn(`No chunks found for document: ${documentId}`);
