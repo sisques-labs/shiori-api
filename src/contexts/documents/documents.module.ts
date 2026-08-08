@@ -11,6 +11,7 @@ import { TenancyModule } from '@core/tenancy/tenancy.module';
 import { CreateDocumentCommandHandler } from './application/commands/create-document/create-document.handler';
 import { DeleteDocumentCommandHandler } from './application/commands/delete-document/delete-document.handler';
 import { DeleteDocumentsByKnowledgeBaseCommandHandler } from './application/commands/delete-documents-by-knowledge-base/delete-documents-by-knowledge-base.handler';
+import { RechunkDocumentCommandHandler } from './application/commands/rechunk-document/rechunk-document.handler';
 import { UpdateDocumentCommandHandler } from './application/commands/update-document/update-document.handler';
 import { CHUNKING_STRATEGY_PORT } from './application/ports/chunking-strategy.port';
 import { DOCUMENT_PROCESSING_QUEUE_PORT } from './application/ports/document-processing-queue.port';
@@ -46,12 +47,14 @@ import { DocumentCreateMcpTool } from './transport/mcp/tools/document-create.too
 import { DocumentDeleteMcpTool } from './transport/mcp/tools/document-delete.tool';
 import { DocumentFindByCriteriaMcpTool } from './transport/mcp/tools/document-find-by-criteria.tool';
 import { DocumentFindByIdMcpTool } from './transport/mcp/tools/document-find-by-id.tool';
+import { DocumentRechunkMcpTool } from './transport/mcp/tools/document-rechunk.tool';
 import { DocumentsController } from './transport/rest/controllers/documents.controller';
 import { DocumentRestMapper } from './transport/rest/mappers/document/document.mapper';
 
 const COMMAND_HANDLERS = [
   CreateDocumentCommandHandler,
   UpdateDocumentCommandHandler,
+  RechunkDocumentCommandHandler,
   DeleteDocumentCommandHandler,
   DeleteDocumentsByKnowledgeBaseCommandHandler,
 ];
@@ -117,6 +120,7 @@ const MCP_TOOLS = [
   DocumentFindByIdMcpTool,
   DocumentFindByCriteriaMcpTool,
   DocumentDeleteMcpTool,
+  DocumentRechunkMcpTool,
 ];
 
 const TRANSPORT_PROVIDERS = [
