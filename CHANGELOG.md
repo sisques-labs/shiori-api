@@ -1,6 +1,14 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.2.1] - 2026-08-09
+
+### Documentation
+- **readme:** Reflect that the full RAG pipeline is shipped (85bb360)
+
+### Features
+- **observability:** Replace Sentry and Prometheus with OpenTelemetry (6edb9fa)
+- **observability:** Forward logs through the OpenTelemetry pipeline (8f9efd1)
 ## [0.2.0] - 2026-08-08
 
 ### Bug Fixes
