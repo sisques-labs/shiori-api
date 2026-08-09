@@ -53,9 +53,15 @@ importers:
       '@opentelemetry/api':
         specifier: ^1.9.1
         version: 1.9.1
+      '@opentelemetry/api-logs':
+        specifier: ^0.221.0
+        version: 0.221.0
       '@opentelemetry/auto-instrumentations-node':
         specifier: ^0.79.0
         version: 0.79.0(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.10.0(@opentelemetry/api@1.9.1))(supports-color@8.1.1)
+      '@opentelemetry/exporter-logs-otlp-proto':
+        specifier: ^0.221.0
+        version: 0.221.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/exporter-metrics-otlp-proto':
         specifier: ^0.221.0
         version: 0.221.0(@opentelemetry/api@1.9.1)
@@ -65,6 +71,9 @@ importers:
       '@opentelemetry/resources':
         specifier: ^2.10.0
         version: 2.10.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-logs':
+        specifier: ^0.221.0
+        version: 0.221.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-metrics':
         specifier: ^2.10.0
         version: 2.10.0(@opentelemetry/api@1.9.1)
@@ -77,6 +86,9 @@ importers:
       '@opentelemetry/semantic-conventions':
         specifier: ^1.43.0
         version: 1.43.0
+      '@opentelemetry/winston-transport':
+        specifier: ^0.31.0
+        version: 0.31.0
       '@sisques-labs/nestjs-kit':
         specifier: ^1.6.1
         version: 1.6.1(5f9c02bdaeb1bb4ce6268ca70192d8a5)
@@ -1676,6 +1688,10 @@ packages:
     engines: {node: ^18.19.0 || >=20.6.0}
     peerDependencies:
       '@opentelemetry/api': ^1.1.0
+
+  '@opentelemetry/winston-transport@0.31.0':
+    resolution: {integrity: sha512-higyMoGHbDTNlCX5ue1dJjDQuYSWwC0L4k6x57RKLG0uXdCIdyIu/OQYnjciL+7Kv2XmPMy4VQloeh36NTJTuQ==}
+    engines: {node: ^18.19.0 || >=20.6.0}
 
   '@paralleldrive/cuid2@2.3.1':
     resolution: {integrity: sha512-XO7cAxhnTZl0Yggq6jOgjiOHhbgcO4NqFqwSmQpjK3b6TEE6Uj/jfSk6wzYyemh3+I0sHirKSetjQwn5cZktFw==}
@@ -7237,6 +7253,12 @@ snapshots:
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/core': 2.10.0(@opentelemetry/api@1.9.1)
+
+  '@opentelemetry/winston-transport@0.31.0':
+    dependencies:
+      '@opentelemetry/api-logs': 0.221.0
+      '@opentelemetry/semantic-conventions': 1.43.0
+      winston-transport: 4.9.0
 
   '@paralleldrive/cuid2@2.3.1':
     dependencies:
