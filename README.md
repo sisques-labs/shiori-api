@@ -8,16 +8,25 @@ The project is bootstrapped from
 [`sisques-labs/nestjs-template`](https://github.com/sisques-labs/nestjs-template):
 **DDD + CQRS + Hexagonal** architecture, TypeORM/PostgreSQL, optional Kafka
 event forwarding, REST (Swagger) + GraphQL (Apollo) transports, structured
-logging (`@sisques-labs/nestjs-kit` + Winston), Sentry, Prometheus metrics,
-an MCP endpoint, health checks, and production-ready CI/CD workflows.
+logging (`@sisques-labs/nestjs-kit` + Winston), OpenTelemetry traces + metrics
++ logs, an MCP endpoint, health checks, and production-ready CI/CD workflows.
 
-The first bounded context, **`knowledge-bases`** (`src/contexts/knowledge-bases/`),
-has landed: it's the tenant root every future RAG context scopes its data
-to, authenticated by a per-knowledge-base API key. See its
-[README](src/contexts/knowledge-bases/README.md) for the auth flow and the
+The full RAG pipeline — **ingest → chunk → embed → retrieve** — is
+implemented end to end across four bounded contexts under
+`src/contexts/`:
+
+| Context | README | Owns |
+|---------|--------|------|
+| [`knowledge-bases`](src/contexts/knowledge-bases/README.md) | tenant root: create/manage a Knowledge Base, its API key, and its embedding model config |
+| [`documents`](src/contexts/documents/README.md) | ingest text/Markdown documents, async chunking pipeline |
+| [`embeddings`](src/contexts/embeddings/README.md) | embedding model registry, vector generation/storage (pgvector), similarity search, re-embedding |
+| [`retrieval`](src/contexts/retrieval/README.md) | tenant-scoped semantic search — query orchestration + transport over `embeddings` |
+
+`knowledge-bases` is the tenant root every other context scopes its data to
+via a per-Knowledge-Base API key; see its README for the auth flow and the
 reusable tenancy mechanism (`src/core/tenancy/`) it introduces. See the
 `architecture` skill in `.claude/skills/architecture/SKILL.md` for the layer
-rules every context — including this one — must follow.
+rules every context must follow.
 
 ## What's included
 
@@ -25,27 +34,21 @@ rules every context — including this one — must follow.
 |------|-------|-------|
 | Config + env validation | `src/core/config/` | Zod-validated env vars, CORS origin resolution |
 | Health checks | `src/core/health/` | `GET /api/health/live` (liveness), `GET /api/health/ready` (DB ping via `@nestjs/terminus`) |
-| Logging | `src/support/logging/` | Winston via `@sisques-labs/nestjs-kit`, JSON file + console transports |
+| Logging | `src/support/logging/` | Winston via `@sisques-labs/nestjs-kit`, JSON file + console transports, plus an OTel transport forwarding to the pipeline below |
 | Kafka event forwarding | `@sisques-labs/nestjs-kit/messaging` (wired in `src/core/core.module.ts`); `src/core/messaging/` keeps only the app-local, auto-generated aggregate→topic map | Opt-in (`KAFKA_ENABLED`), no-op when disabled |
-| Prometheus metrics | `@sisques-labs/nestjs-kit/metrics` (wired in `src/core/core.module.ts`) | `GET /api/metrics`, HTTP (REST+GraphQL) + CQRS instrumentation |
-| Sentry | `src/core/observability/` | Disabled until `SENTRY_DSN` is set |
+| Async job queues | `src/core/` + BullMQ/Redis | Backs `documents`' chunking pipeline and `embeddings`' embed/re-embed pipelines |
+| OpenTelemetry | `src/telemetry.ts` (bootstrap), `src/core/observability/` (CQRS spans+metrics) | Traces + metrics + logs exported via OTLP to a collector; all disabled together until `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Auto-instruments HTTP/Express, GraphQL, Postgres, Kafka; CQRS command/query buses get spans + duration/count metrics; every Winston log line is forwarded too (`@opentelemetry/winston-transport`), correlated with the active span. `docker-compose.yml` ships a local collector + Jaeger UI (`:16686`) + Prometheus UI (`:9090`) — logs currently just land in the collector's own output (no local log backend wired up yet; swap the `logs` exporter in `docker/otel-collector-config.yaml` for Loki or similar when ready) |
 | MCP (Model Context Protocol) | `@sisques-labs/nestjs-kit/mcp` (wired in `src/core/core.module.ts`) | `POST /api/mcp`, per-request server, tool auto-discovery |
 | REST + GraphQL | `src/main.ts`, `src/core/core.module.ts` | Swagger at `/docs`, Apollo GraphQL at `/graphql` |
-| Database | `src/database/`, TypeORM | Postgres only; migrations in `src/database/migrations/` |
+| Database | `src/database/`, TypeORM, pgvector | Postgres + pgvector (`pgvector/pgvector:pg18`); migrations in `src/database/migrations/` |
 | CI/CD | `.github/workflows/` | `ci.yml` (lint+test+build+e2e+integration), `docker.yml` (PR smoke build), `release.yml` / `release-train.yml` |
 | Dev workflow | `AGENTS.md`, `.claude/`, `openspec/` | Architecture skill, OpenSpec propose/apply/archive skills, project conventions in `openspec/config.yaml` |
-
-## Roadmap
-
-`knowledge-bases` (tenancy) is done. Next up: `documents` (ingestion,
-chunking) and `retrieval` (embeddings, vector search via pgvector) — tracked
-as they're proposed under `openspec/`.
 
 ## Local development
 
 ```bash
 pnpm install
-pnpm test:db:up      # Postgres on localhost:5434 (dev) — see docker-compose.yml
+pnpm test:db:up      # Postgres (pgvector) on localhost:5434 (dev) — see docker-compose.yml
 pnpm dev              # nest start --watch
 ```
 
@@ -62,7 +65,44 @@ pnpm dev              # nest start --watch
 Husky runs `pnpm gen:topics` + `lint-staged` on **pre-commit**, and
 `pnpm build && pnpm test:changed` on **pre-push**.
 
-See `.env.example` for every environment variable this service reads.
+See `.env.example` for every environment variable this service reads —
+including the `documents`/`embeddings`/`retrieval` guardrail vars (max
+content length, max chunks, embeddings endpoint, `topK` defaults) documented
+in each context's own README.
+
+## Quickstart
+
+Every request below (other than creating the Knowledge Base) is
+authenticated with the `x-api-key` header returned by the first call. See
+Swagger at `/docs` for the full request/response shapes.
+
+```bash
+BASE_URL=http://localhost:3000/api/v1
+
+# 1. Create a Knowledge Base (tenant) — no auth required, returns the API key once
+curl -s -X POST "$BASE_URL/knowledge-bases" \
+  -H 'Content-Type: application/json' \
+  -d '{"name": "My Docs", "embeddingModel": "text-embedding-3-small"}'
+# => { "id": "...", "name": "My Docs", "apiKey": "sk_...", ... }
+
+API_KEY=sk_...   # from the response above
+
+# 2. Ingest a document — queues async chunking + embedding
+curl -s -X POST "$BASE_URL/documents" \
+  -H "x-api-key: $API_KEY" -H 'Content-Type: application/json' \
+  -d '{"title": "Getting started", "content": "Shiori is a RAG platform..."}'
+# => 202 Accepted { "id": "...", "status": "PENDING" }
+
+# 3. Semantic search once chunking/embedding finish
+curl -s -X POST "$BASE_URL/retrieval/search" \
+  -H "x-api-key: $API_KEY" -H 'Content-Type: application/json' \
+  -d '{"query": "what is Shiori?", "topK": 5}'
+# => [ { "chunkText": "...", "score": 0.87, ... }, ... ]
+```
+
+Ingestion is asynchronous: poll `GET /documents/:id` (or the `document`
+GraphQL query) until `status` is `CHUNKED` before expecting search results
+for that document.
 
 ## Architecture
 
