@@ -1,4 +1,4 @@
-import './instrument';
+import './telemetry';
 
 import { NestFactory } from '@nestjs/core';
 import {
@@ -10,16 +10,14 @@ import { VERSION_METADATA } from '@nestjs/common/constants';
 import { ConfigService } from '@nestjs/config';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { MetricsController } from '@sisques-labs/nestjs-kit/metrics';
 import { McpController } from '@sisques-labs/nestjs-kit/mcp';
 
 import { AppModule } from './app.module';
 import { BaseExceptionFilter } from './core/filters/base-exception.filter';
 
-// These controllers ship inside @sisques-labs/nestjs-kit without a version,
-// so URI versioning below would otherwise move them to /api/v1/*. Scraper and
-// MCP client configs expect the stable, unversioned paths, so pin them here.
-Reflect.defineMetadata(VERSION_METADATA, VERSION_NEUTRAL, MetricsController);
+// This controller ships inside @sisques-labs/nestjs-kit without a version,
+// so URI versioning below would otherwise move it to /api/v1/*. MCP client
+// configs expect the stable, unversioned path, so pin it here.
 Reflect.defineMetadata(VERSION_METADATA, VERSION_NEUTRAL, McpController);
 
 async function bootstrap() {

@@ -1,6 +1,38 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.2.0] - 2026-08-08
+
+### Bug Fixes
+- **knowledge-bases:** Update stale import after exception rename (ec4914c)
+- **embeddings:** Remove text-embedding-3-large from the model registry (8312f73)
+- **embeddings:** Pin qwen3-embedding registry entry to the 0.6B tag (0b9106b)
+- **embeddings:** Don't require dimensions to build an EmbeddingViewModel (993a0bf)
+- **test:** Remove embedding_vectors_3072 from the truncate list (1472d90)
+- **test:** Supply embeddingModel to pre-existing KB creation tests (6269204)
+- **test:** Avoid re-embed queue race in REEMBEDDING search e2e test (d1305e8)
+- **embeddings:** Scope vector search by model, not just dimension (2fea35e)
+
+### Chore
+- **embeddings:** Wire new review-fix services, update README references (07ad9da)
+
+### Features
+- **embeddings:** Add static model registry and normalize vector storage (7697465)
+- **knowledge-bases:** Add per-KB embedding model and re-embed state machine (018dd84)
+- **embeddings:** Add re-embed pipeline and KB-config/search-gating queries (56fffed)
+- **embeddings:** Report progress from both embedding processors (a76b8c1)
+- **embeddings,knowledge-bases:** Add model-picker transport and migration (83b654c)
+- **embeddings:** Add qwen3-embedding to the model registry (44e6b8d)
+- **knowledge-bases:** Add ReembedKnowledgeBase command to force a full re-embed under the current model (8cdcdce)
+- **documents:** Add RechunkDocument command to force re-chunking without a content change (8bc7bff)
+
+### Refactor
+- **knowledge-bases:** Extract embedding-model checks into services (d12974e)
+- **embeddings:** Dedupe per-document embed logic, review feedback (8d5e4a6)
+
+### Testing
+- **database:** Register new migrations in the test data source, add round-trip spec (2969f5d)
+- **retrieval:** Add e2e coverage for cross-model search isolation (a988197)
 ## [0.1.0] - 2026-08-08
 
 ### Bug Fixes

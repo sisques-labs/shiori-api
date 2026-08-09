@@ -1,9 +1,9 @@
 import { appConfig } from './config/app.config';
 import { validateEnv } from './config/env.validation';
 import { kafkaConfig } from './config/kafka.config';
+import { otelConfig } from './config/otel.config';
 import { postgresConfig } from './config/postgres.config';
 import { redisConfig, RedisConfig } from './config/redis.config';
-import { sentryConfig } from './config/sentry.config';
 import { AGGREGATE_MODULE_MAP } from './messaging/domain/topics/aggregate-module.map.generated';
 import { HealthModule } from './health/health.module';
 import { McpContextBuilder } from './mcp/mcp-context.builder';
@@ -21,7 +21,6 @@ import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { SharedGraphQLModule } from '@sisques-labs/nestjs-kit/graphql';
 import { McpModule } from '@sisques-labs/nestjs-kit/mcp';
 import { MessagingModule } from '@sisques-labs/nestjs-kit/messaging';
-import { MetricsModule } from '@sisques-labs/nestjs-kit/metrics';
 
 import { SupportModule } from '../support/support.module';
 
@@ -35,7 +34,7 @@ const CORE_MODULES = [
   ConfigModule.forRoot({
     isGlobal: true,
     validate: validateEnv,
-    load: [postgresConfig, appConfig, sentryConfig, kafkaConfig, redisConfig],
+    load: [postgresConfig, appConfig, otelConfig, kafkaConfig, redisConfig],
     cache: true,
   }),
   TypeOrmModule.forRootAsync({
@@ -64,7 +63,6 @@ const CORE_MODULES = [
     }),
   }),
   ObservabilityModule,
-  MetricsModule.forRoot({ appLabel: 'shiori-api' }),
   MessagingModule.forRoot({ aggregateModuleMap: AGGREGATE_MODULE_MAP }),
   HealthModule,
   McpModule.forRoot({
