@@ -8,7 +8,7 @@ The project is bootstrapped from
 [`sisques-labs/nestjs-template`](https://github.com/sisques-labs/nestjs-template):
 **DDD + CQRS + Hexagonal** architecture, TypeORM/PostgreSQL, optional Kafka
 event forwarding, REST (Swagger) + GraphQL (Apollo) transports, structured
-logging (`@sisques-labs/nestjs-kit` + Winston), Sentry, Prometheus metrics,
+logging (`@sisques-labs/nestjs-kit` + Winston), OpenTelemetry traces + metrics,
 an MCP endpoint, health checks, and production-ready CI/CD workflows.
 
 The full RAG pipeline — **ingest → chunk → embed → retrieve** — is
@@ -37,8 +37,7 @@ rules every context must follow.
 | Logging | `src/support/logging/` | Winston via `@sisques-labs/nestjs-kit`, JSON file + console transports |
 | Kafka event forwarding | `@sisques-labs/nestjs-kit/messaging` (wired in `src/core/core.module.ts`); `src/core/messaging/` keeps only the app-local, auto-generated aggregate→topic map | Opt-in (`KAFKA_ENABLED`), no-op when disabled |
 | Async job queues | `src/core/` + BullMQ/Redis | Backs `documents`' chunking pipeline and `embeddings`' embed/re-embed pipelines |
-| Prometheus metrics | `@sisques-labs/nestjs-kit/metrics` (wired in `src/core/core.module.ts`) | `GET /api/metrics`, HTTP (REST+GraphQL) + CQRS instrumentation |
-| Sentry | `src/core/observability/` | Disabled until `SENTRY_DSN` is set |
+| OpenTelemetry | `src/telemetry.ts` (bootstrap), `src/core/observability/` (CQRS spans+metrics) | Traces + metrics exported via OTLP to a collector; disabled until `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Auto-instruments HTTP/Express, GraphQL, Postgres, Kafka; CQRS command/query buses get spans + duration/count metrics. `docker-compose.yml` ships a local collector + Jaeger UI (`:16686`) + Prometheus UI (`:9090`) |
 | MCP (Model Context Protocol) | `@sisques-labs/nestjs-kit/mcp` (wired in `src/core/core.module.ts`) | `POST /api/mcp`, per-request server, tool auto-discovery |
 | REST + GraphQL | `src/main.ts`, `src/core/core.module.ts` | Swagger at `/docs`, Apollo GraphQL at `/graphql` |
 | Database | `src/database/`, TypeORM, pgvector | Postgres + pgvector (`pgvector/pgvector:pg18`); migrations in `src/database/migrations/` |
