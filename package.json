@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@apollo/server": "4.13.0",
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@nestjs/apollo": "^12.2.2",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/bullmq": "^11.0.4",
