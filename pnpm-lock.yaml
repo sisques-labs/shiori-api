@@ -90,7 +90,7 @@ importers:
         specifier: ^0.31.0
         version: 0.31.0
       '@sisques-labs/nestjs-kit':
-        specifier: ^1.6.1
+        specifier: 1.6.1
         version: 1.6.1(5f9c02bdaeb1bb4ce6268ca70192d8a5)
       axios:
         specifier: ^1.19.0
